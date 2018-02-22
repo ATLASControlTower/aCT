@@ -13,8 +13,6 @@ PKGDIR="$DSTPKG" # extension removal in future?
 cp -R "$SRCDIR" "$PKGDIR"
 
 # first, delete some useless directories
-rm -rf "$PKGDIR/src/test"
-rm -rf "$PKGDIR/src/act/cli"
 rm -rf "$PKGDIR/.git"
 rm -f "$PKGDIR/.gitignore"
 
@@ -28,10 +26,7 @@ mkdir "$RUNDIR"
 # setup directories for mysql
 MYSQLDIR="$RUNDIR/mysql"
 mkdir $MYSQLDIR
-mv "$PKGDIR/act-testing/mysql/mysql.conf" "$MYSQLDIR"
-
-# nothing else needed from act-testing, delete it
-rm -rf "$PKGDIR/act-testing"
+mv "$PKGDIR/src/act/client/mysql.conf" "$MYSQLDIR"
 
 # create bin directory for programs
 BINDIR="$PKGDIR/bin"
