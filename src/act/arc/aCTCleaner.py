@@ -18,7 +18,7 @@ class aCTCleaner(aCTProcess):
 
         self.log.info("Cleaning %i jobs", sum(len(v) for v in jobstoclean.values()))
         for proxyid, jobs in jobstoclean.items():
-            self.uc.CredentialString(self.db.getProxy(proxyid))
+            self.uc.CredentialString(str(self.db.getProxy(proxyid)))
 
             job_supervisor = arc.JobSupervisor(self.uc, [j[2] for j in jobs])
             job_supervisor.Update()

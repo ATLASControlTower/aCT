@@ -128,7 +128,7 @@ class aCTFetcher(aCTProcess):
         
         fetched = []; notfetched = []; notfetchedretry = []
         for proxyid, jobs in jobstofetch.items():
-            self.uc.CredentialString(self.db.getProxy(proxyid))
+            self.uc.CredentialString(str(self.db.getProxy(proxyid)))
             
             # Clean the download dir just in case something was left from previous attempt
             for job in jobs:    
@@ -170,7 +170,7 @@ class aCTFetcher(aCTProcess):
                     shutil.rmtree(self.conf.get(['tmp','dir']) + job.JobID[job.JobID.rfind('/'):], True)
                     # Check if job still exists
                     fileinfo = arc.FileInfo()
-                    self.uc.CredentialString(self.db.getProxy(proxyid))
+                    self.uc.CredentialString(str(self.db.getProxy(proxyid)))
                     dp = aCTUtils.DataPoint(job.JobID, self.uc)
                     status = dp.h.Stat(fileinfo)
                     # TODO Check other permanent errors

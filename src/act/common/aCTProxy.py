@@ -27,7 +27,7 @@ class aCTProxy:
         f = open(path)
         proxy = f.read()
         f.close()
-        self.uc.CredentialString(proxy)
+        self.uc.CredentialString(str(proxy))
         cred=arc.Credential(self.uc)
         dn = cred.GetIdentityName()
         expirytime=datetime.datetime.strptime(cred.GetEndTime().str(arc.UTCTime),"%Y-%m-%dT%H:%M:%SZ")
