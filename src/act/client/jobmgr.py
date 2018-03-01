@@ -130,9 +130,7 @@ class JobManager(object):
         else:
             # otherwise, get all jobs that can be cleaned
             where += " a.arcstate IN ( 'done', 'donefailed', 'cancelled', 'failed' ) AND "
-        if name_filter:
-            where += " c.jobname LIKE %s AND "
-            where_params.append('%' + name_filter + '%')
+        where, where_params = self._addNameFilter(name_filter, where, where_params)
         if jobids:
             where += ' c.id IN ({}) '.format(
                     clientdb.createMysqlEscapeList(len(jobids)))
@@ -234,9 +232,7 @@ class JobManager(object):
         # create query with filtering
         where = " a.arcstate = 'failed' AND c.proxyid = %s AND "
         where_params = [proxyid]
-        if name_filter: # refactor?
-            where += " c.jobname LIKE %s AND "
-            where_params.append('%' + name_filter + '%')
+        where, where_params = self._addNameFilter(name_filter, where, where_params)
         if jobids:
             where += ' c.id IN ({}) '.format(
                     clientdb.createMysqlEscapeList(len(jobids)))
@@ -284,9 +280,7 @@ class JobManager(object):
         where = ' c.proxyid = %s AND '
         where_params = [proxyid]
         where += " a.arcstate IN ( 'done', 'donefailed', 'failed' ) AND "
-        if name_filter:
-            where += " c.jobname LIKE %s AND "
-            where_params.append('%' + name_filter + '%')
+        where, where_params = self._addNameFilter(name_filter, where, where_params)
         if jobids:
             where += ' c.id IN ({}) '.format(
                     clientdb.createMysqlEscapeList(len(jobids)))
@@ -368,9 +362,7 @@ class JobManager(object):
         else:
             # otherwise, get all jobs that can be "getted"
             where += " a.arcstate IN ( 'done', 'donefailed' ) AND "
-        if name_filter:
-            where += " c.jobname LIKE %s AND "
-            where_params.append('%' + name_filter + '%')
+        where, where_params = self._addNameFilter(name_filter, where, where_params)
         if jobids:
             where += ' c.id IN ({}) '.format(
                     clientdb.createMysqlEscapeList(len(jobids)))
@@ -427,9 +419,7 @@ class JobManager(object):
         else:
             # otherwise, get all jobs that can be "getted"
             where += " (a.arcstate IN ( 'submitted', 'running', '' ) OR a.arcstate IS NULL) AND "
-        if name_filter:
-            where += " c.jobname LIKE %s AND "
-            where_params.append('%' + name_filter + '%')
+        where, where_params = self._addNameFilter(name_filter, where, where_params)
         if jobids:
             where += ' c.id IN ({}) '.format(
                     clientdb.createMysqlEscapeList(len(jobids)))
@@ -487,9 +477,7 @@ class JobManager(object):
         # create query with filters
         where = " a.arcstate = 'failed' AND c.proxyid = %s AND "
         where_params = [proxyid]
-        if name_filter: # refactor?
-            where += " c.jobname LIKE %s AND "
-            where_params.append('%' + name_filter + '%')
+        where, where_params = self._addNameFilter(name_filter, where, where_params)
         if jobids:
             where += ' c.id IN ({}) '.format(
                     clientdb.createMysqlEscapeList(len(jobids)))
@@ -545,9 +533,7 @@ class JobManager(object):
         if state_filter:
             where += " a.arcstate = %s AND "
             where_params.append(state_filter)
-        if name_filter:
-            where += " c.jobname LIKE %s AND "
-            where_params.append('%' + name_filter + '%')
+        where, where_params = self._addNameFilter(name_filter, where, where_params)
         if jobids:
             where += ' c.id IN ({}) '.format(
                     clientdb.createMysqlEscapeList(len(jobids)))
@@ -615,6 +601,12 @@ class JobManager(object):
                 where += '{}, '.format(integer)
             where = where.rstrip(', ')
         return where
+
+    def _addNameFilter(self, name_filter='', where='', where_params=[]):
+        if name_filter:
+            where += " c.jobname LIKE %s AND "
+            where_params.append('%' + name_filter + '%')
+        return where, where_params
 
 
 class JobGetResults(object):
