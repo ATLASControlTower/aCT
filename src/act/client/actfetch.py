@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+#TODO: consider adding state argument because of refetch operation
+
 """
 Fetch failed jobs from ARC.
 
@@ -22,6 +24,8 @@ parser.add_argument('-v', '--verbose', action='store_true',
         help='show more information')
 parser.add_argument('-p', '--proxy', default=None,
         help='custom path to proxy certificate')
+parser.add_argument('-r', '--refetch', action='store_true',
+        help='refetch packages')
 args = parser.parse_args()
 
 # logging
@@ -58,7 +62,11 @@ except NoSuchProxyError as e:
 
 # fetch jobs
 manager = jobmgr.JobManager()
-numFetching = manager.fetchJobs(proxyid, jobs, args.find)
-print 'Will fetch {} jobs'.format(numFetching)
+if args.refetch:
+    numFetching = manager.refetchJobs(proxyid, args.find)
+    print 'Will refetch {} jobs'.format(numFetching)
+else:
+    numFetching = manager.fetchJobs(proxyid, jobs, args.find)
+    print 'Will fetch {} jobs'.format(numFetching)
 
 

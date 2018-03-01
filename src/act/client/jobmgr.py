@@ -261,6 +261,77 @@ class JobManager(object):
 
         return len(jobs)
 
+    def refetchJobs(self, proxyid, jobids=[], name_filter=''):
+        """
+        Refetch given jobs from cluster.
+
+        Sometimes it happens that downloaded job results are corrupt. It is
+        necessary to fetch results again if that happens. This means that
+        already fetched results have to be deleted as well.
+
+        Jobs that haven't yet been fetched (for instance failed jobs) can also
+        be assigned for fetching in this operation.
+
+        Args:
+            proxyid: An integer ID of proxy.
+            jobids: A list of integer IDs of jobs.
+            name_filter: A string that job names should match.
+
+        Returns:
+            Number of jobs that will be refetched.
+        """
+        # create filters in query
+        where = ' c.proxyid = %s AND '
+        where_params = [proxyid]
+        where += " a.arcstate IN ( 'done', 'donefailed', 'failed' ) AND "
+        if name_filter:
+            where += " c.jobname LIKE %s AND "
+            where_params.append('%' + name_filter + '%')
+        if jobids:
+            where += ' c.id IN ({}) '.format(
+                    clientdb.createMysqlEscapeList(len(jobids)))
+            where_params.extend(jobids)
+        # WHEN stops with AND which is wrong
+        where = where.rstrip('AND ')
+
+        jobs = self.clidb.getJoinJobsInfo(
+                clicols=[],
+                arccols=['arcstate', 'JobID', 'id'],
+                where=where,
+                where_params=where_params)
+
+        if not jobs:
+            return 0
+
+        for job in jobs:
+            if job['a_arcstate'] == 'failed':
+                patch = {'arcstate': 'tofetch'}
+            else:
+                try:
+                    jobdir = self.getACTJobDir(job['a_JobID'])
+                    shutil.rmtree(jobdir)
+                except OSError:
+                    # just log this problem, user doesn't need results anyway
+                    self.logger.exception('Could not clean job results in {}'.format(
+                        jobdir))
+                except NoJobDirectoryError as e:
+                    # just log this problem, user doesn't need results anyway
+                    self.logger.exception('Could not clean job results in {}'.format(
+                        e.jobdir))
+
+                # finished jobs become done, tofetch jobs become donefailed;
+                # the job status should be preserved
+                if job['a_arcstate'] == 'done':
+                    patch = {'arcstate': 'finished'}
+                else:
+                    patch = {'arcstate': 'tofetch'}
+
+            where = ' id = {}'.format(job['a_id'])
+            patch['tarcstate'] = self.arcdb.getTimeStamp()
+            self.arcdb.updateArcJobs(patch, where)
+
+        return len(jobs)
+
     def getJobs(self, proxyid, jobids=[], state_filter='', name_filter=''):
         """
         Get given finished jobs that match optional filter.
