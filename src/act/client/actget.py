@@ -99,7 +99,7 @@ dontRemove = []
 for result in results.jobdicts:
     try:
         if result['dir']: # if there are job results in tmp
-            dst_dirname = os.path.basename(os.path.normpath(result['dir']))
+            dst_dirname = os.path.basename(os.path.normpath(result['name']))
             dstdir = getLocalDir(dst_dirname)
             shutil.copytree(result['dir'], dstdir)
             print 'Results stored at: {}'.format(dstdir)
