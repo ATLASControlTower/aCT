@@ -25,7 +25,7 @@ parser.add_argument('-v', '--verbose', action='store_true',
         help='show more information')
 parser.add_argument('-p', '--proxy', default=None,
         help='custom path to proxy certificate')
-parser.add_argument('--arc-cols', default='JobID,state,arcstate',
+parser.add_argument('--arc-cols', default='JobID,State,arcstate',
         help='columns from ARC table that should be fetched')
 parser.add_argument('--client-cols', default='jobname',
         help='columns from client table that should be fetched')
@@ -105,7 +105,6 @@ except Exception as e:
     sys.exit(9)
 
 if not jobdicts: # no jobs so just exit
-    print 'no such jobs in table'
     sys.exit(0)
 
 # For each column, determine biggest sized value so that output can
