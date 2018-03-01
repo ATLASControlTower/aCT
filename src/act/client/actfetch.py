@@ -63,7 +63,7 @@ except NoSuchProxyError as e:
 # fetch jobs
 manager = jobmgr.JobManager()
 if args.refetch:
-    numFetching = manager.refetchJobs(proxyid, args.find)
+    numFetching = manager.refetchJobs(proxyid, jobs, args.find)
     print 'Will refetch {} jobs'.format(numFetching)
 else:
     numFetching = manager.fetchJobs(proxyid, jobs, args.find)
