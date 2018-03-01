@@ -47,6 +47,8 @@ parser.add_argument('-v', '--verbose', action='store_true',
         help='show more information')
 parser.add_argument('-p', '--proxy', default=None,
         help='custom path to proxy certificate')
+parser.add_argument('-n', '--no-clean', action='store_true',
+        help='do not clean jobs')
 args = parser.parse_args()
 
 # logging
@@ -121,6 +123,7 @@ for jobid in dontRemove:
             del results.jobdicts[jobix]
 
 # clean jobs
-manager.forceCleanJobs(results)
+if not args.no_clean:
+    manager.forceCleanJobs(results)
 
 
