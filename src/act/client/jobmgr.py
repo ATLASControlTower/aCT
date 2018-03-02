@@ -131,11 +131,7 @@ class JobManager(object):
             # otherwise, get all jobs that can be cleaned
             where += " a.arcstate IN ( 'done', 'donefailed', 'cancelled', 'failed' ) AND "
         where, where_params = self._addNameFilter(name_filter, where, where_params)
-        if jobids:
-            where += ' c.id IN ({}) '.format(
-                    clientdb.createMysqlEscapeList(len(jobids)))
-            where_params.extend(jobids)
-        # WHEN stops with AND which is wrong
+        where, where_params = self._addIDFilter(jobids, where, where_params)
         where = where.rstrip('AND ')
 
         jobs = self.clidb.getJoinJobsInfo(
@@ -233,11 +229,7 @@ class JobManager(object):
         where = " a.arcstate = 'failed' AND c.proxyid = %s AND "
         where_params = [proxyid]
         where, where_params = self._addNameFilter(name_filter, where, where_params)
-        if jobids:
-            where += ' c.id IN ({}) '.format(
-                    clientdb.createMysqlEscapeList(len(jobids)))
-            where_params.extend(jobids)
-        # When no jobids given, WHEN can stop with AND
+        where, where_params = self._addIDFilter(jobids, where, where_params)
         where = where.rstrip('AND ')
 
         jobs = self.clidb.getJoinJobsInfo(
@@ -281,11 +273,7 @@ class JobManager(object):
         where_params = [proxyid]
         where += " a.arcstate IN ( 'done', 'donefailed', 'failed' ) AND "
         where, where_params = self._addNameFilter(name_filter, where, where_params)
-        if jobids:
-            where += ' c.id IN ({}) '.format(
-                    clientdb.createMysqlEscapeList(len(jobids)))
-            where_params.extend(jobids)
-        # WHEN stops with AND which is wrong
+        where, where_params = self._addIDFilter(jobids, where, where_params)
         where = where.rstrip('AND ')
 
         jobs = self.clidb.getJoinJobsInfo(
@@ -363,10 +351,7 @@ class JobManager(object):
             # otherwise, get all jobs that can be "getted"
             where += " a.arcstate IN ( 'done', 'donefailed' ) AND "
         where, where_params = self._addNameFilter(name_filter, where, where_params)
-        if jobids:
-            where += ' c.id IN ({}) '.format(
-                    clientdb.createMysqlEscapeList(len(jobids)))
-            where_params.extend(jobids)
+        where, where_params = self._addIDFilter(jobids, where, where_params)
         where = where.rstrip('AND ')
 
         jobs = self.clidb.getJoinJobsInfo(
@@ -420,10 +405,7 @@ class JobManager(object):
             # otherwise, get all jobs that can be "getted"
             where += " (a.arcstate IN ( 'submitted', 'running', '' ) OR a.arcstate IS NULL) AND "
         where, where_params = self._addNameFilter(name_filter, where, where_params)
-        if jobids:
-            where += ' c.id IN ({}) '.format(
-                    clientdb.createMysqlEscapeList(len(jobids)))
-            where_params.extend(jobids)
+        where, where_params = self._addIDFilter(jobids, where, where_params)
         where = where.rstrip('AND ')
 
         jobs = self.clidb.getLeftJoinJobsInfo(
@@ -478,11 +460,7 @@ class JobManager(object):
         where = " a.arcstate = 'failed' AND c.proxyid = %s AND "
         where_params = [proxyid]
         where, where_params = self._addNameFilter(name_filter, where, where_params)
-        if jobids:
-            where += ' c.id IN ({}) '.format(
-                    clientdb.createMysqlEscapeList(len(jobids)))
-            where_params.extend(jobids)
-        # When no jobids given, WHEN can stop with AND
+        where, where_params = self._addIDFilter(jobids, where, where_params)
         where = where.rstrip('AND ')
 
         if where:
@@ -534,10 +512,7 @@ class JobManager(object):
             where += " a.arcstate = %s AND "
             where_params.append(state_filter)
         where, where_params = self._addNameFilter(name_filter, where, where_params)
-        if jobids:
-            where += ' c.id IN ({}) '.format(
-                    clientdb.createMysqlEscapeList(len(jobids)))
-            where_params.extend(jobids)
+        where, where_params = self._addIDFilter(jobids, where, where_params)
         where = where.rstrip('AND ')
 
         # state filter condition is for right table which might turn
@@ -606,6 +581,13 @@ class JobManager(object):
         if name_filter:
             where += " c.jobname LIKE %s AND "
             where_params.append('%' + name_filter + '%')
+        return where, where_params
+
+    def _addIDFilter(self, ids=[], where='', where_params=[]):
+        if ids:
+            where += ' c.id IN ({}) AND '.format(
+                    clientdb.createMysqlEscapeList(len(ids)))
+            where_params.extend(ids)
         return where, where_params
 
 
