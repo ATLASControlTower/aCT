@@ -579,7 +579,7 @@ class JobManager(object):
 
     def _addNameFilter(self, name_filter='', where='', where_params=[]):
         if name_filter:
-            where += " c.jobname LIKE %s AND "
+            where += " c.jobname LIKE BINARY %s AND "
             where_params.append('%' + name_filter + '%')
         return where, where_params
 
