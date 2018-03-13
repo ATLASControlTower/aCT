@@ -384,6 +384,9 @@ class JobManager(object):
         engine. By using left join, the jobs that haven't been submitted yet
         or that are in inconsistent state, are cleaned as well.
 
+        Jobs that are waiting for submission can also be killed, which deletes
+        them immediately.
+
         Args:
             proxyid: An integer ID of proxy.
             jobids: A list of job ID integers.
@@ -394,7 +397,7 @@ class JobManager(object):
             Number of jobs assigned to be killed.
         """
         # wrong state filter, return immediately
-        if state_filter not in ('', 'submitted', 'running'):
+        if state_filter not in ('', 'submitted', 'running', 'tosubmit'):
             return 0 # zero killed jobs
         where = ' c.proxyid = %s AND '
         where_params = [proxyid]
@@ -403,14 +406,18 @@ class JobManager(object):
             where_params.append(state_filter)
         else:
             # otherwise, get all jobs that can be "getted"
-            where += " (a.arcstate IN ( 'submitted', 'running', '' ) OR a.arcstate IS NULL) AND "
+            where += " (a.arcstate IN ( 'submitted', 'running', '', 'tosubmit' ) OR a.arcstate IS NULL) AND "
         where, where_params = self._addNameFilter(name_filter, where, where_params)
         where, where_params = self._addIDFilter(jobids, where, where_params)
         where = where.rstrip('AND ')
 
+        res = self.arcdb.getMutexLock('arcjobs', timeout=2)
+        if not res:
+            raise Exception("Could not lock table for killing jobs")
+
         jobs = self.clidb.getLeftJoinJobsInfo(
                 clicols=['id'],
-                arccols=['id'],
+                arccols=['id', 'arcstate'],
                 where=where,
                 where_params=where_params)
 
@@ -424,6 +431,11 @@ class JobManager(object):
                 # If id from arcjobs is NULL, then job is either waiting or in
                 # inconsistent state. The job has to be deleted.
                 client_ids.append(int(job['c_id']))
+            elif job['a_arcstate'] == 'tosubmit':
+                # 'tosubmit' jobs cannot be set to tocancel, they have to be deleted
+                # immediately.
+                client_ids.append(int(job['c_id']))
+                self.arcdb.deleteArcJob(job['a_id'])
             else:
                 # If there is entry in arcjobs, the job can be killed by
                 # setting its state to 'tocancel'
@@ -438,6 +450,10 @@ class JobManager(object):
             client_where = ' id IN ({})'.format(
                     clientdb.createMysqlEscapeList(len(client_ids)))
             self.clidb.deleteJobs(client_where, client_ids)
+
+        res = self.arcdb.releaseMutexLock('arcjobs')
+        if not res:
+            raise Exception("Could not release lock after killing jobs")
 
         return len(jobs)
 
