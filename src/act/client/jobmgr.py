@@ -597,8 +597,6 @@ class JobManager(object):
         if name_filter:
             where += " c.jobname LIKE BINARY %s AND "
             escaped_filter = name_filter.replace('_', r'\_')
-            print 'original name filter: {}'.format(name_filter)
-            print 'escaped name filter: {}'.format(escaped_filter)
             where_params.append('%' + escaped_filter + '%')
         return where, where_params
 
