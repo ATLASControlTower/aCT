@@ -1,5 +1,5 @@
 """
-A set of functions and variables for handling configuration.
+A set of functions and variables for handling configuration using ConfigParser.
 
 Every program gets configuration in 4 steps:
     1. as parameters for program
@@ -36,10 +36,10 @@ def parse_conf_file(conf_file, conf_dict):
     """
     Parse configuration file into given dictionary.
 
-    All dictionary keys with None values will be taken from config.
-    If they are not present in config, they remain None.
+    All dictionary keys with None values will be taken from config file.
+    If they are not present in config file, they remain None.
     """
-    # inserting dummy section, as config parser requires it
+    # insert dummy section, as config parser requires it
     conf_str = '[dummy]\n' + conf_file.read()
     conf_fp = StringIO.StringIO(conf_str)
     conf_parser = ConfigParser.RawConfigParser()
@@ -52,7 +52,7 @@ def parse_conf_file(conf_file, conf_dict):
 
 
 def set_defaults(conf_dict):
-    """Set all None parameters to defaults values in config dictionary."""
+    """Set all None parameters to default values in config dictionary."""
     for key, value in conf_dict.items():
         if value is None:
             conf_dict[key] = DEFAULTS.get(key, None)
