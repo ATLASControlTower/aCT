@@ -69,7 +69,7 @@ class aCTPanda2Xrsl:
         # force single-node jobs for now
         if self.ncores > 1:
             self.xrsl['countpernode'] = '(countpernode=%d)' % self.ncores
-            if self.sitename.find('RAL-LCG2') < 0 and self.sitename.find('TOKYO') < 0 and self.sitename.find('FZK') < 0 and self.sitename.find('TRIUMF') < 0 and self.sitename.find('IFIC'):
+            if self.sitename.find('RAL-LCG2') < 0 and self.sitename.find('TOKYO') < 0 and self.sitename.find('FZK') < 0 and self.sitename.find('TRIUMF') < 0 and self.sitename.find('IFIC') < 0 and self.sitename.find('pic') < 0:
                 self.xrsl['countpernode'] = '(runtimeenvironment = APPS/HEP/ATLAS-MULTICORE-1.0)'
 
         return self.ncores
@@ -160,8 +160,8 @@ class aCTPanda2Xrsl:
             memory = self.defaults['memory']
 
         # fix until maxrrs in pandajob is better known
-        if memory <= 500:
-            memory = 500
+        if memory <= 1000:
+            memory = 1000
 
         if self.sitename == 'BOINC' or self.sitename == 'BOINC_MCORE':
             memory = 2400
@@ -172,6 +172,10 @@ class aCTPanda2Xrsl:
         #        memory = memory / self.getNCores()
         #    else:
         #        memory = 3000
+
+        # fix memory to 500MB units (AF fix before divide)
+        memory = int(memory-1)/500*500 + 500
+
         if self.getNCores() > 1:
             # hack for 0 ramcount, defaulting to 4000, see above, fix to 2000/core
             if memory == 4000:
@@ -179,11 +183,13 @@ class aCTPanda2Xrsl:
             else:
                 memory = memory / self.getNCores()
 
-        # fix memory to 500MB units
-        memory = int(memory-1)/500*500 + 500
+        #AF # fix memory to 500MB units
+        #AF memory = int(memory-1)/500*500 + 500
 	# temp hack
         if self.sitename == 'CSCS-LCG2-HPC_MCORE_TEST':
 		memory = 850
+        if self.sitename == 'MPPMU_MCORE' and memory < 2000:
+		memory = 2000
 
         self.xrsl['memory'] = '(memory = %d)' % (memory)
 
@@ -334,34 +340,31 @@ class aCTPanda2Xrsl:
         if self.jobdesc['prodSourceLabel'][0] == 'rc_test':
             x += '(pilotcode.tar.gz "http://pandaserver.cern.ch:25080;cache=check/cache/pilot/pilotcode-rc.tar.gz")'
         elif self.jobdesc['prodSourceLabel'][0] == 'ptest':
-            x += '(pilotcode.tar.gz "http://project-atlas-gmsb.web.cern.ch;cache=check/project-atlas-gmsb/pilotcode-dev.tar.gz")'
+            #x += '(pilotcode.tar.gz "http://project-atlas-gmsb.web.cern.ch;cache=check/project-atlas-gmsb/pilotcode-dev.tar.gz")'
+            x += '(pilotcode.tar.gz "http://project-atlas-gmsb.web.cern.ch/project-atlas-gmsb/pilot2.tar.gz")'
         elif self.sitename in ['LRZ-LMU_MUC1_MCORE', 'LRZ-LMU_MUC_MCORE1', 'IN2P3-CC_HPC_IDRIS_MCORE']:
             x += '(pilotcode.tar.gz "http://wguan-wisc.web.cern.ch;cache=check/wguan-wisc/wguan-pilot-dev-HPC_arc.tar.gz")'
-        elif re.match('.*XXXXXXXXXXXXSiGNET.*', self.sitename):
-	    # test new pilotcode
-            x += '(pilotcode.tar.gz "http://project-atlas-gmsb.web.cern.ch/project-atlas-gmsb/pilotcode-PICARD-72.3-PRE.tar.gz")'
-        elif re.match('BEIJING-.*_MCORE', self.sitename):
-            x += '(pilotcode.tar.gz "http://pandaserver.cern.ch:25080;cache=check/cache/pilot/pilotcode-PICARD.tar.gz")'
-            x += '(agis_schedconf.agis.%s.json "http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s")' % (self.sitename,self.sitename)
-            x += '(agis_ddmendpoints.json "/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmendpoints.json")'
-            x += '(agis_ddmblacklisting.json "/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmblacklisting.json")'
-            x += '(agis_schedconf.cvmfs.json "/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json")'
         elif self.sitename in self.rtesites:
             x += '(pilotcode.tar.gz "http://aipanda404.cern.ch;cache=check/data/releases/pilotcode-PICARD-RTE.tar.gz")'
         #elif 'BOINC' in self.sitename or (self.sitename.startswith('ANALY') and not self.truepilot) or ('MPPMU' in self.sitename):
             # Use official pilot for BOINC and ND analy queues
             #x += '(pilotcode.tar.gz "http://pandaserver.cern.ch:25080;cache=check/cache/pilot/pilotcode-PICARD.tar.gz")'
             #x += '(pilotcode.tar.gz "http://aipanda404.cern.ch;cache=check/data/releases/pilotcode-PICARD-NOKILL.tar.gz")'
-        elif 'RAL' in self.sitename:
-            x += '(pilotcode.tar.gz "http://aipanda404.cern.ch;cache=check/data/releases/pilotcode-PICARD-NOKILL.tar.gz")'
-        elif self.sitename == 'BOINC-ES':
-            x += '(pilotcode.tar.gz "http://project-atlas-gmsb.web.cern.ch;cache=check/project-atlas-gmsb/pilotcode-PICARD-72.1-PRE.tar.gz")'
         else:
             # Use no kill pilot to avoid pilot killing too much at end of job
+            # Paul's version using PILOT_NOKILL
+            x += '(pilotcode.tar.gz "http://project-atlas-gmsb.web.cern.ch;cache=check/project-atlas-gmsb/pilotcode-PICARD-72.12-NORDUGRID.tar.gz")'
             #x += '(pilotcode.tar.gz "http://aipanda404.cern.ch;cache=check/data/releases/pilotcode-PICARD-NOKILL.tar.gz")'
-            x += '(pilotcode.tar.gz "http://pandaserver.cern.ch:25080;cache=check/cache/pilot/pilotcode-PICARD.tar.gz")'
+            #x += '(pilotcode.tar.gz "http://pandaserver.cern.ch:25080;cache=check/cache/pilot/pilotcode-PICARD.tar.gz")'
             #x += '(pilotcode.tar.gz "http://aipanda404.cern.ch;cache=check/data/releases/pilotcode-PICARD-AF.tar.gz")'
             #x += '(pilotcode.tar.gz "http://dcameron.web.cern.ch;cache=check/dcameron/dev/pilotcode-DC.tar.gz")'
+
+        # Special HPCs which cannot get agis files from cvmfs or over network
+        if re.match('BEIJING-.*_MCORE', self.sitename):
+            x += '(agis_schedconf.agis.%s.json "http://atlas-agis-api.cern.ch/request/pandaqueue/query/list/?json&preset=schedconf.all&panda_queue=%s")' % (self.sitename,self.sitename)
+            x += '(agis_ddmendpoints.json "/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmendpoints.json")'
+            x += '(agis_ddmblacklisting.json "/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmblacklisting.json")'
+            x += '(agis_schedconf.cvmfs.json "/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_schedconf.json")'
 
         if self.eventranges:
             x += '(ARCpilot-test.tar.gz "http://aipanda404.cern.ch;cache=check/data/releases/ARCpilot-es.tar.gz")'
@@ -492,13 +495,15 @@ class aCTPanda2Xrsl:
                 self.xrsl['priority'] = ""
 
     def setEnvironment(self):
-        # Set schedulerID and job log URL for true pilot jobs
+
         if not self.truepilot:
+            self.xrsl['environment'] = '(environment = ("PILOT_NOKILL" "YES"))'
             return
 
+        # Set schedulerID and job log URL for true pilot jobs
         schedid = self.atlasconf.get(["panda", "schedulerid"])
         schedurl = self.atlasconf.get(["joblog", "urlprefix"])
-        self.xrsl['environment'] = '(environment = ("PANDA_JSID" "%s")("SCHED_URL" "%s"))' % (schedid, schedurl)
+        self.xrsl['environment'] = '(environment = ("PILOT_NOKILL" "YES")("PANDA_JSID" "%s")("SCHED_URL" "%s"))' % (schedid, schedurl)
 
     def parse(self):
         self.setTime()

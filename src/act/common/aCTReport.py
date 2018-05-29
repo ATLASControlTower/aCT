@@ -51,20 +51,21 @@ class aCTStatus:
                 else:
                     cluster_procs[cluster] = [process]
         
+        for proc in longprocesses:
+            print 'WARNING: %s (pid %s) for %s running for more than one hour (%s), this process will be killed' % proc
+            # Kill process and log a critical message to send email
+            # Too many emails, disable
+            #self.criticallog.critical('Killing process %s (pid %s) for %s running for more than one hour (%s)' % proc)
+            try:
+                os.kill(int(proc[1]), signal.SIGKILL)
+            except OSError:
+                pass
+        print
         print 'Active processes per cluster:'
         for cluster in sorted(cluster_procs):
             procs = cluster_procs[cluster]
             procs.sort()
             print '%38s: %s' % (cluster, ' '.join(procs))
-        print
-        for proc in longprocesses:
-            print 'WARNING: %s (pid %s) for %s running for more than one hour (%s)' % proc
-            # Kill process and log a critical message to send email
-            self.criticallog.critical('Killing process %s (pid %s) for %s running for more than one hour (%s)' % proc)
-            try:
-                os.kill(int(proc[1]), signal.SIGKILL)
-            except OSError:
-                pass
         print
         
     def PandaReport(self):

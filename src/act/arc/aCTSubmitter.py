@@ -185,6 +185,8 @@ class aCTSubmitter(aCTProcess):
                 if aris.Protocol() == 'https':
                     aris.ChangePath('/arex')
                     infoendpoints = [arc.Endpoint(aris.str(), arc.Endpoint.COMPUTINGINFO, 'org.ogf.glue.emies.resourceinfo')]
+                elif aris.Protocol() == 'local':
+                    infoendpoints = [arc.Endpoint(aris.str(), arc.Endpoint.COMPUTINGINFO, 'org.nordugrid.local')]
                 else:
                     aris = 'ldap://'+aris.Host()+'/mds-vo-name=local,o=grid'
                     infoendpoints = [arc.Endpoint(aris, arc.Endpoint.COMPUTINGINFO, 'org.nordugrid.ldapng')]
@@ -342,7 +344,7 @@ class aCTSubmitter(aCTProcess):
                 elif job.JobID in notcancelled:
                     if job.State == arc.JobState.UNDEFINED:
                         # If longer than one hour since submission assume job never made it
-                        if job.StartTime + arc.Period(3600) < arc.Time():
+                        if arc.Time(int(created.strftime("%s"))) + arc.Period(3600) < arc.Time():
                             self.log.warning("%s: Assuming job %s is lost and marking as cancelled" % (appjobid, job.JobID))
                             self.db.updateArcJob(id, {"arcstate": "cancelled",
                                                       "tarcstate": self.db.getTimeStamp()})
