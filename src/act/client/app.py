@@ -44,7 +44,7 @@ def stat():
     Return status info for jobs in JSON format.
 
     There are several parameters that can be given in URL. Possible
-    filtering parameters are: 
+    filtering parameters are:
         'id': a list of job IDs
         'name': a substring that has to be present in job names
         'state': state that jobs have to be in
