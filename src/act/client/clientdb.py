@@ -2,6 +2,7 @@
 This module defines object for managing client engine's table in database.
 """
 # TODO: Check if all methods from ClientDB are still used after changes.
+# TODO: Check mysql escaping TODOs
 
 import arc
 import logging
@@ -55,7 +56,7 @@ class ClientDB(aCTDB):
             modified TIMESTAMP,
             created TIMESTAMP,
             jobname VARCHAR(255),
-            jobdesc mediumtext,
+            jobdesc integer,
             siteName VARCHAR(255),
             arcjobid integer,
             proxyid integer
@@ -87,11 +88,16 @@ class ClientDB(aCTDB):
         """
         Insert job into clientjobs table.
 
+        This function does not insert job decription in to the database. It
+        has to be inserted separately. However, job description is still needed
+        to determine the name of the job. This function is meant for clients
+        that need to perform additional work on job descriptions.
+
         Args:
             jobdesc: A string with xRSL job description.
             proxyid: ID from proxies table of a proxy that job will
                 be submitted with.
-            siteName: A string with name of a site in configuration 
+            siteName: A string with name of a site in configuration
                 that job will be submitted to.
             lazy: A boolean that determines whether transaction should be
                 commited after operation.
@@ -113,7 +119,7 @@ class ClientDB(aCTDB):
         """
         c = self.getCursor()
         try:
-            c.execute(query, [self.getTimeStamp(), jobname, jobdesc, siteName, proxyid])
+            c.execute(query, [self.getTimeStamp(), jobname, None, siteName, proxyid])
             c.execute('SELECT LAST_INSERT_ID()')
             jobid = c.fetchone()['LAST_INSERT_ID()']
         except:
@@ -124,6 +130,107 @@ class ClientDB(aCTDB):
             if not lazy:
                 self.conn.commit()
             return jobid
+
+    def insertJobAndDescription(self, jobdesc, proxyid, siteName, lazy=False):
+        """
+        Insert job into clientjobs and job description into jobdescriptions.
+
+        This function also inserts job description. It is meant for clients
+        that can insert everything at the same time.
+
+        Args:
+            jobdesc: A string with xRSL job description.
+            proxyid: ID from proxies table of a proxy that job will
+                be submitted with.
+            siteName: A string with name of a site in configuration
+                that job will be submitted to.
+            lazy: A boolean that determines whether transaction should be
+                commited after operation.
+
+        Returns:
+            ID of inserted job.
+        """
+        c = self.getCursor()
+
+        # first, insert job description and retreive the job ID
+        try:
+            query = 'INSERT INTO jobdescriptions (jobdescription) VALUES (%s)'
+            c.execute(query, [jobdesc])
+            c.execute('SELECT LAST_INSERT_ID()')
+            jobdescid = c.fetchone()['LAST_INSERT_ID()']
+        except:
+            self.conn.rollback()
+            self.log.exception('Error inserting job description')
+            raise
+
+        # get job name from xRSL
+        jobdescs = arc.JobDescriptionList()
+        arc.JobDescription_Parse(str(jobdesc), jobdescs)
+        jobname = jobdescs[0].Identification.JobName
+
+        # insert job
+        query = """
+            INSERT INTO clientjobs (created, jobname, jobdesc, siteName, proxyid)
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        c = self.getCursor()
+        try:
+            c.execute(query, [self.getTimeStamp(), jobname, jobdescid, siteName, proxyid])
+            c.execute('SELECT LAST_INSERT_ID()')
+            jobid = c.fetchone()['LAST_INSERT_ID()']
+        except:
+            self.conn.rollback()
+            self.log.exception('Error while inserting new job')
+            raise
+        else:
+            if not lazy:
+                self.conn.commit()
+            return jobid
+
+    def insertArcJob(self, jobdesc, jobdescid, proxyid='', maxattempts=0, clusterlist='', appjobid='', downloadfiles='', fairshare=''):
+        '''
+        Insert job into arcjobs table.
+
+        This function is a modified version of insertArcJobDescription from aCTDBArc
+        module. Because client engine uses jobdescriptions table to store job descriptions,
+        it cannot use job insertion functions from aCTDBArc for passing jobs to ARC engine,
+        because those insert job description themselves (duplicating it).
+
+        Function is kept to be similar and violate some conventions (exceptions) of other
+        functions in this module (clientdb) on purpose for now.
+        '''
+        # extract priority from job desc (also checks if desc is valid)
+        jobdescs = arc.JobDescriptionList()
+        if not arc.JobDescription_Parse(str(jobdesc), jobdescs):
+            self.log.error("%s: Failed to prepare job description" % appjobid)
+            return None
+        priority = jobdescs[0].Application.Priority
+        if priority == -1: # use nicer default priority
+            priority = 50
+
+        c=self.getCursor()
+
+        desc = {}
+        desc['created'] = self.getTimeStamp()
+        desc['arcstate'] = "tosubmit"
+        desc['tarcstate']  = desc['created']
+        desc['tstate'] = desc['created']
+        desc['cluster']  = ''
+        desc['clusterlist'] = clusterlist
+        desc['jobdesc'] = jobdescid
+        desc['attemptsleft'] = maxattempts
+        desc['proxyid'] = proxyid
+        desc['appjobid'] = appjobid
+        desc['downloadfiles'] = downloadfiles
+        desc['priority'] = priority
+        desc['fairshare'] = fairshare
+        s="insert into arcjobs" + " ( " + ",".join(['%s' % (k) for k in desc.keys()]) + " ) " + " values " + \
+            " ( " + ",".join(['%s' % (k) for k in ["%s"] * len(desc.keys()) ]) + " ) "
+        c.execute(s,desc.values())
+        c.execute("SELECT LAST_INSERT_ID()")
+        row = c.fetchone()
+        self.conn.commit()
+        return row
 
     def deleteJobs(self, where, params):
         """
@@ -212,7 +319,7 @@ class ClientDB(aCTDB):
     def updateJob(self, jobid, patch, lazy=False):
         """
         Update job wih given information.
-        
+
         Information is given as a dictionary, keys are column names and values
         are new column values.
 
@@ -418,5 +525,4 @@ def createMysqlEscapeList(num):
     for i in range(num):
         esc_str += '%s, '
     return esc_str.rstrip(', ')
-
 

@@ -38,7 +38,6 @@ logFormat = "[%(asctime)s] [%(filename)s:%(lineno)d] [%(levelname)s] - %(message
 if args.verbose:
     logging.basicConfig(format=logFormat, level=logging.DEBUG, stream=sys.stdout)
 else:
-    import os
     logging.basicConfig(format=logFormat, level=logging.DEBUG, filename=os.devnull)
 
 import act.client.jobmgr as jobmgr
@@ -73,7 +72,7 @@ except IOError:
 # insert job
 arcconf = aCTConfig.aCTConfigARC()
 clidb = clientdb.ClientDB(dbname=arcconf.get(['db', 'name']))
-jobid = clidb.insertJob(jobdesc, proxyid, args.site)
+jobid = clidb.insertJobAndDescription(jobdesc, proxyid, args.site)
 print 'Successfully inserted job with id {}'.format(jobid)
 
 

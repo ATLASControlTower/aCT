@@ -71,7 +71,7 @@ for xrsl in args.xRSL:
     except IOError:
         print 'error: could not read file {}'.format(xrsl)
     else:
-        jobid = clidb.insertJob(jobdesc, proxyid, args.site, lazy=True)
+        jobid = clidb.insertJobAndDescription(jobdesc, proxyid, args.site, lazy=True)
         print 'Successfully inserted job with id {}'.format(jobid)
 clidb.Commit()
 

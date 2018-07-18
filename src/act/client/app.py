@@ -215,7 +215,7 @@ def submit():
     else:
         clidb = clientdb.ClientDB()
         try:
-            jobid = clidb.insertJob(jobdesc, proxyid, site)
+            jobid = clidb.insertJobAndDescription(jobdesc, proxyid, site)
         except Exception as e:
             return 'Server error: {}'.format(str(e)), 500
         else:

@@ -148,7 +148,7 @@ class Client2Arc(object):
         # (they don't have reference to ARC table, arcjobid is null).
         jobs = self.clidb.getJobsInfo(
             ['id', 'jobdesc', 'siteName'],
-            where='proxyid = %s AND arcjobid IS NULL',
+            where='proxyid = %s AND arcjobid IS NULL AND jobdesc IS NOT NULL',
             where_params=[proxyid],
             order_by='%s',
             order_by_params=['id'],
@@ -171,9 +171,13 @@ class Client2Arc(object):
                     clusterlist += site + ','
                 clusterlist = clusterlist.rstrip(',')
 
+            # get job description, needed for setting priority
+            jobdesc = self.arcdb.getArcJobDescription(job['jobdesc'])
+
             # insert job to ARC table
             try:
-                row = self.arcdb.insertArcJobDescription(
+                row = self.clidb.insertArcJob(
+                    jobdesc,
                     job['jobdesc'],
                     proxyid,
                     0,
