@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ $# -ne 2 ]; then
 	echo "usage: $0 <source dir> <path to archive>"

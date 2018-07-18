@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # configure database
 echo "Configuring database ..."
@@ -7,7 +7,7 @@ mv temp_start.sh start_db.sh
 
 # start database
 echo "Starting database ..."
-/bin/sh start_db.sh &
+/bin/bash start_db.sh &
 sleep 1
 
 # configure aCT
@@ -21,7 +21,7 @@ pip install --user virtualenv
 
 # create venv
 echo "Creating python virtual environment ..."
-/bin/sh setup_venv.sh
+/bin/bash setup_venv.sh
 
 # activate virtualenv
 echo "Activating virtual environment ..."
@@ -41,7 +41,7 @@ pip install Flask
 # create database tables
 echo "Creating database ..."
 python setup_db.py
-/bin/sh stop_db.sh
+/bin/bash stop_db.sh
 
 # deactivate python virtual environent
 echo "Deactivating virtual environment ..."

@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 
 # Script requires python virtual environment to be activated when run.
 
 # start database
 echo "Starting database ..."
-/bin/sh start_db.sh &
+/bin/bash start_db.sh &
 sleep 1
 
 # start aCT

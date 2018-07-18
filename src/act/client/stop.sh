@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Script requires python virtual environment to be activated when run.
 
@@ -7,6 +7,6 @@ aCTMain.py stop
 
 # stop database
 echo "Stopping database ..."
-/bin/sh stop_db.sh
+/bin/bash stop_db.sh
 
 echo "Done"
