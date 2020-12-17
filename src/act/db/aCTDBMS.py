@@ -47,6 +47,9 @@ class aCTDBMS(object):
     def timeStampLessThan(self,column,timediff):
         raise Exception("Method not implemented")
 
+    def timeStampGreaterThan(self,column,timediff):
+        raise Exception("Method not implemented")
+
     def addLock(self):
         raise Exception("Method not implemented")
 

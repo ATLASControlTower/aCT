@@ -172,9 +172,14 @@ class aCTDBLDMX(aCTDB):
         rows = c.fetchall()
         return rows
 
-    def getGroupedArchiveJobs(self, groupby):
+    def getGroupedArchiveJobs(self, groupby, limit=None):
         c = self.db.getCursor()
-        c.execute(f"SELECT count(*), {groupby} FROM ldmxarchive GROUP BY {groupby}")
+        if limit:
+            c.execute(f"SELECT count(*), {groupby} FROM ldmxarchive WHERE " \
+                      f"{self.db.timeStampGreaterThan('endtime', limit)} " \
+                      f"GROUP BY {groupby}")
+        else:
+            c.execute(f"SELECT count(*), {groupby} FROM ldmxarchive GROUP BY {groupby}")
         rows = c.fetchall()
         return rows
 

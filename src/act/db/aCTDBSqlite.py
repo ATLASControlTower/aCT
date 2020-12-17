@@ -29,6 +29,9 @@ class aCTDBSqlite(aCTDBMS):
     def timeStampLessThan(self,column,timediff):
         return "datetime("+column+") < datetime('now', '-"+str(timediff)+" seconds')"
 
+    def timeStampGreaterThan(self,column,timediff):
+        return "datetime("+column+") > datetime('now', '-"+str(timediff)+" seconds')"
+
     def addLock(self):
         # SQLite does not support row locking
         return ""

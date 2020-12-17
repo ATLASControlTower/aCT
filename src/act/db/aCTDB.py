@@ -30,6 +30,9 @@ class aCTDB(object):
     def timeStampLessThan(self, column, timediff, utc=True):
         return self.db.timeStampLessThan(column, timediff, utc)
 
+    def timeStampGreaterThan(self, column, timediff, utc=True):
+        return self.db.timeStampGreaterThan(column, timediff, utc)
+
     def Commit(self, lock=False):
         if lock:
             res = self.db.releaseMutexLock(self.table)

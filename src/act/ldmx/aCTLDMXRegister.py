@@ -85,7 +85,7 @@ class aCTLDMXRegister(aCTLDMXProcess):
 
             # copy to joblog dir files downloaded for the job if configured:
             # gmlog errors and job stdout
-            if self.conf.get(['joblog', 'keepsuccessful']) and self.conf.get(['joblog','dir']):
+            if str(self.conf.get(['joblog', 'keepsuccessful'])) == '1' and self.conf.get(['joblog','dir']):
                 self.copyOutputFiles(aj)
 
             # Clean tmp dir
