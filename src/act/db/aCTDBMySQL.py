@@ -67,6 +67,10 @@ class aCTDBMySQL(aCTDBMS):
         # utc should be set to False for columns with auto incremented timestamp
         return f"UNIX_TIMESTAMP({column}) < UNIX_TIMESTAMP({'UTC_TIMESTAMP()' if utc else ''}) - {timediff}"
 
+    def timeStampGreaterThan(self,column,timediff,utc=True):
+        # utc should be set to False for columns with auto incremented timestamp
+        return f"UNIX_TIMESTAMP({column}) > UNIX_TIMESTAMP({'UTC_TIMESTAMP()' if utc else ''}) - {timediff}"
+
     def addLock(self):
         return " FOR UPDATE"
 
