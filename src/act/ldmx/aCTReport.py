@@ -63,7 +63,8 @@ def report(actconfs):
     states = ['finished', 'failed', 'cancelled']
     rep = defaultdict(lambda: defaultdict(int))
     rtot = defaultdict(int)
-    rows = db.getGroupedArchiveJobs('batchid, ldmxstatus')
+    # Show only batches from last month
+    rows = db.getGroupedArchiveJobs('batchid, ldmxstatus', limit=60*60*24*30)
     for r in rows:
         count, state, batch = (r['count(*)'], r['ldmxstatus'], r['batchid'] or 'None')
         rep[batch][state] += count
