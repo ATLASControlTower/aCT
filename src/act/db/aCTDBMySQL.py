@@ -57,6 +57,10 @@ class aCTDBMySQL(aCTDBMS):
             except mysql.errors.OperationalError as err:
                 self.log.warning("Error getting cursor: %s" % str(err))
                 aCTUtils.sleep(1)
+                # Try closing connection and reconnecting
+                self.conn.close()
+                self._connect(self.dbname)
+
         raise Exception("Could not get cursor")
 
     def timeStampLessThan(self,column,timediff,utc=True):
