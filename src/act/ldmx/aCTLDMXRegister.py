@@ -83,10 +83,8 @@ class aCTLDMXRegister(aCTLDMXProcess):
             else: # success
                 self.dbldmx.updateJobs(select, {'ldmxstatus': 'finished'})
 
-            # copy to joblog dir files downloaded for the job if configured:
-            # gmlog errors and job stdout
-            if str(self.conf.get(['joblog', 'keepsuccessful'])) == '1' and self.conf.get(['joblog','dir']):
-                self.copyOutputFiles(aj)
+            # copy to joblog dir files downloaded for the job if configured
+            self.copyOutputFiles(aj)
 
             # Clean tmp dir
             self.cleanDownloadedJob(jobid)
@@ -102,34 +100,41 @@ class aCTLDMXRegister(aCTLDMXProcess):
 
     def copyOutputFiles(self, arcjob):
         '''
-        Copy job stdout and errors log to final location
+        Copy job stdout and errors log to final location if requested
         '''
         sessionid = arcjob['JobID'][arcjob['JobID'].rfind('/')+1:]
         date = arcjob['created'].strftime('%Y-%m-%d')
         outd = os.path.join(self.conf.get(['joblog','dir']), date)
         os.makedirs(outd, 0o755, exist_ok=True)
 
-        localdir = os.path.join(self.tmpdir, sessionid)
-        gmlogerrors = os.path.join(localdir, "gmlog", "errors")
-        arcjoblog = os.path.join(outd, "%s.log" % arcjob['id'])
-        try:
-            shutil.move(gmlogerrors, arcjoblog)
-            os.chmod(arcjoblog, 0o644)
-            if selinux:
-                selinux.restorecon(arcjoblog) #pylint: disable=E1101
-        except Exception as e:
-            self.log.error(f'Failed to copy {gmlogerrors}: {e}')
-
-        jobstdout = arcjob['stdout']
-        if jobstdout:
+        if str(self.conf.get(['joblog', 'keepsuccessful'])) == '1' and self.conf.get(['joblog','dir']):
+            localdir = os.path.join(self.tmpdir, sessionid)
+            gmlogerrors = os.path.join(localdir, "gmlog", "errors")
+            arcjoblog = os.path.join(outd, "%s.log" % arcjob['id'])
             try:
-                shutil.move(os.path.join(localdir, jobstdout),
-                            os.path.join(outd, '%s.out' % arcjob['id']))
-                os.chmod(os.path.join(outd, '%s.out' % arcjob['id']), 0o644)
+                shutil.move(gmlogerrors, arcjoblog)
+                os.chmod(arcjoblog, 0o644)
                 if selinux:
-                    selinux.restorecon(os.path.join(outd, '%s.out' % arcjob['id'])) #pylint: disable=E1101
+                    selinux.restorecon(arcjoblog) #pylint: disable=E1101
             except Exception as e:
-                self.log.error(f'Failed to copy file {os.path.join(localdir, jobstdout)}, {str(e)}')
+                self.log.error(f'Failed to copy {gmlogerrors}: {e}')
+    
+            jobstdout = arcjob['stdout']
+            if jobstdout:
+                try:
+                    shutil.move(os.path.join(localdir, jobstdout),
+                                os.path.join(outd, '%s.out' % arcjob['id']))
+                    os.chmod(os.path.join(outd, '%s.out' % arcjob['id']), 0o644)
+                    if selinux:
+                        selinux.restorecon(os.path.join(outd, '%s.out' % arcjob['id'])) #pylint: disable=E1101
+                except Exception as e:
+                    self.log.error(f'Failed to copy file {os.path.join(localdir, jobstdout)}, {str(e)}')
+        else:
+            # delete xrsl file
+            try:
+                os.remove(os.path.join(outd, f"{arcjob['appjobid']}.xrsl"))
+            except IOError as e:
+                self.log.debug(f"Failed to remove xrsl file for {arcjob['id']}: {e}")
 
 
     def cleanInputFiles(self, job):
