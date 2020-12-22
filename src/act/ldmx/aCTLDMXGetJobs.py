@@ -3,6 +3,8 @@ import os
 import tempfile
 import time
 
+from rucio.common.exception import RucioException, DataIdentifierNotFound
+
 from act.ldmx.aCTLDMXProcess import aCTLDMXProcess
 
 class aCTLDMXGetJobs(aCTLDMXProcess):
@@ -15,15 +17,49 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
 
     def generateJobs(self, config):
 
-        randomseed1 = int(config['RandomSeed1SequenceStart'])
-        randomseed2 = int(config['RandomSeed2SequenceStart'])
-        njobs = int(config['NumberofJobs'])
-        self.log.info(f'Creating {njobs} jobs')
-        for n in range(njobs):
-            config['RandomSeed1'] = randomseed1+n
-            config['RandomSeed2'] = randomseed2+n
-            config['runNumber']   = randomseed1+n
-            yield config
+        if 'InputDataset' in config:
+            # Jobs with input files: generate one job per file
+            try:
+                scope, name = config['InputDataset'].split(':')
+            except ValueError:
+                self.log.error(f'{config["InputDataset"]} is not correctly formatted as scope:name')
+                return []
+            # List dataset replicas and set filename and RSE in the config
+            try:
+                files = self.rucio.list_replicas([{'scope': scope, 'name': name}])
+            except DataIdentifierNotFound:
+                self.log.error(f'No such dataset {scope}:{name}')
+                return []
+            except RucioException as e:
+                self.log.error(f'Rucio exception while looking up dataset {scope}:{name}: {e}')
+                return []
+            for i, f in enumerate(files):
+                config['InputFile'] = f'{f["scope"]}:{f["name"]}'
+                for rse, rep in f['rses'].items():
+                    if rse in self.rses:
+                        self.log.debug(f'Found local replica of {f["scope"]}:{f["name"]} in {rse}')
+                        config['InputDataLocationLocal'] = rep[0].replace('file://', '')
+                        config['InputDataLocationLocalRSE'] = rse
+                    if not rep[0].startswith('file://'):
+                        self.log.debug(f'Found remote replica of {f["scope"]}:{f["name"]} in {rse}')
+                        config['InputDataLocationRemote'] = rep[0]
+                        config['InputDataLocationRemoteRSE'] = rse
+                if 'InputDataLocationLocal' not in config:
+                    # File will be downloaded by ARC and placed in session dir
+                    config['InputDataLocationLocal'] = f'./{f["name"]}'
+                config['runNumber'] = i+1
+                yield config
+        else:
+            # Jobs with no input: generate jobs based on specified number of jobs
+            randomseed1 = int(config['RandomSeed1SequenceStart'])
+            randomseed2 = int(config['RandomSeed2SequenceStart'])
+            njobs = int(config['NumberofJobs'])
+            self.log.info(f'Creating {njobs} jobs')
+            for n in range(njobs):
+                config['RandomSeed1'] = randomseed1+n
+                config['RandomSeed2'] = randomseed2+n
+                config['runNumber']   = randomseed1+n
+                yield config
 
     def getOutputBase(self, config):
 
@@ -91,14 +127,14 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                     newjobfile = os.path.join(self.tmpdir, os.path.basename(jobfile))
                     with tempfile.NamedTemporaryFile(mode='w', prefix=f'{newjobfile}.', delete=False, encoding='utf-8') as njf:
                         newjobfile = njf.name
-                        njf.write('\n'.join(f'{k}={v}' for k,v in config.items()))
+                        njf.write('\n'.join(f'{k}={v}' for k,v in config.items()) + '\n')
                         if output_base:
-                            njf.write(f'\nFinalOutputBasePath={output_base}')
+                            njf.write(f'FinalOutputBasePath={output_base}\n')
  
                         nouploadsites = self.arcconf.getListCond(["sites", "site"], "noupload=1", ["endpoint"])
-                        self.log.debug(nouploadsites)
                         if nouploadsites:
-                            njf.write(f'\nNoUploadSites={",".join(nouploadsites)}')
+                            self.log.debug(nouploadsites)
+                            njf.write(f'NoUploadSites={",".join(nouploadsites)}\n')
 
                     newtemplatefile = os.path.join(self.tmpdir, os.path.basename(templatefile))
                     with tempfile.NamedTemporaryFile(mode='w', prefix=f'{newtemplatefile}.', delete=False, encoding='utf-8') as ntf:
@@ -109,7 +145,7 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                             elif l.startswith('p.run'):
                                 ntf.write(f'p.run = {jobconfig["runNumber"]}\n')
                             elif l.startswith('sim.randomSeeds'):
-                                ntf.write(f'sim.randomSeeds = [ {jobconfig["RandomSeed1"]}, {jobconfig["RandomSeed2"]} ]\n')
+                                ntf.write(f'sim.randomSeeds = [ {jobconfig.get("RandomSeed1", 0)}, {jobconfig.get("RandomSeed2", 0)} ]\n')
                             else:
                                 ntf.write(l)
 

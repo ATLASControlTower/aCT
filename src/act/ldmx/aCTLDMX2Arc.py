@@ -16,17 +16,22 @@ class aCTLDMX2Arc(aCTLDMXProcess):
         newjobs = self.dbldmx.getJobs("ldmxstatus='new' order by modified limit 100")
         for job in newjobs:
 
-            xrsl = self.createXRSL(job['description'], job['template'])
+            with open(job['description']) as f:
+                config = {l.split('=')[0]: l.split('=')[1].strip() for l in f}
+
+            xrsl = self.createXRSL(job['description'], job['template'], config)
             if not xrsl:
                 self.log.warning(f'Could not create xrsl for {job["id"]}')
                 # Set back to new to put at the back of the queue
                 self.dbldmx.updateJobLazy(job['id'], {'ldmxstatus': 'new'})
                 continue
 
-            self.log.info(f'Inserting job {job["id"]} to CEs {",".join(self.endpoints)}\n with xrsl {xrsl}')
+            # Send to cluster with the data if possible
+            clusterlist = self.rses.get(config.get('InputDataLocationLocalRSE'), ','.join(self.endpoints))
+            self.log.info(f'Inserting job {job["id"]} to CEs {clusterlist}\n with xrsl {xrsl}')
             arcid = self.dbarc.insertArcJobDescription(xrsl,
                                                        proxyid=job['proxyid'],
-                                                       clusterlist=','.join(self.endpoints),
+                                                       clusterlist=clusterlist,
                                                        downloadfiles='gmlog/errors;stdout;rucio.metadata',
                                                        appjobid=str(job['id']),
                                                        fairshare=job['batchid'][:50])
@@ -52,32 +57,36 @@ class aCTLDMX2Arc(aCTLDMXProcess):
             self.dbldmx.Commit()
 
 
-    def createXRSL(self, descriptionfile, templatefile):
+    def createXRSL(self, descriptionfile, templatefile, config):
 
         xrsl = {}
 
         # Parse some requirements from descriptionfile
-        with open(descriptionfile) as f:
-            config = {l.split('=')[0]: l.split('=')[1].strip() for l in f}
-            xrsl['memory'] = f"(memory = {float(config.get('JobMemory', 2)) * 1000})"
-            xrsl['walltime'] = f"(walltime = {int(config.get('JobWallTime', 240))})"
-            xrsl['cputime'] = f"(cputime = {int(config.get('JobWallTime', 240))})"
-            # LDMX RTE must be before SIMPROD one
-            xrsl['runtimeenvironment'] = ''
-            if 'RunTimeEnvironment' in config:
-                xrsl['runtimeenvironment'] = f"(runtimeenvironment = APPS/{config.get('RunTimeEnvironment')})"
-            xrsl['runtimeenvironment'] += f"(runtimeenvironment = APPS/{self.conf.get(['executable', 'simprodrte'])})"
-            if config.get('FinalOutputDestination'):
-                xrsl['outputfiles'] = '(outputfiles = ("rucio.metadata" "")("@output.files" ""))'
-            else:
-                xrsl['outputfiles'] = '(outputfiles = ("rucio.metadata" ""))'
+        xrsl['memory'] = f"(memory = {float(config.get('JobMemory', 2)) * 1000})"
+        xrsl['walltime'] = f"(walltime = {int(config.get('JobWallTime', 240))})"
+        xrsl['cputime'] = f"(cputime = {int(config.get('JobWallTime', 240))})"
+        # LDMX RTE must be before SIMPROD one
+        xrsl['runtimeenvironment'] = ''
+        if 'RunTimeEnvironment' in config:
+            xrsl['runtimeenvironment'] = f"(runtimeenvironment = APPS/{config.get('RunTimeEnvironment')})"
+        xrsl['runtimeenvironment'] += f"(runtimeenvironment = APPS/{self.conf.get(['executable', 'simprodrte'])})"
+        if config.get('FinalOutputDestination'):
+            xrsl['outputfiles'] = '(outputfiles = ("rucio.metadata" "")("@output.files" ""))'
+        else:
+            xrsl['outputfiles'] = '(outputfiles = ("rucio.metadata" ""))'
 
         wrapper = self.conf.get(['executable', 'wrapper'])
         xrsl['executable'] = f"(executable = ldmxsim.sh)"
-        xrsl['inputfiles'] = f'(inputfiles = (ldmxsim.sh {wrapper}) \
-                                             (ldmxproduction.config {descriptionfile}) \
-                                             (ldmxjob.py {templatefile}) \
-                                             (ldmx-simprod-rte-helper.py {self.conf.get(["executable", "ruciohelper"])}))'
+
+        inputfiles = f'(ldmxsim.sh {wrapper}) \
+                       (ldmxproduction.config {descriptionfile}) \
+                       (ldmxjob.py {templatefile}) \
+                       (ldmx-simprod-rte-helper.py {self.conf.get(["executable", "ruciohelper"])})'
+        if 'InputDataLocationLocalRSE' not in config:
+            # No local copy so get ARC to download it
+            inputfiles += f'({config["InputFile"].split(":")[1]} \"{config["InputDataLocationRemote"]}\" "cache=no")'
+        xrsl['inputfiles'] = f'(inputfiles = {inputfiles})'
+
         xrsl['stdout'] = '(stdout = stdout)'
         xrsl['gmlog'] = '(gmlog = gmlog)'
         xrsl['join'] = '(join = yes)'

@@ -47,12 +47,14 @@ class aCTLDMXProcess:
         '''
         self.sites = {}
         self.endpoints = {} # Map of CE to site name
+        self.rses = {} # Map of RSE to CE endpoint
         for sitename in self.arcconf.getList(["sites", "site", "name"]):
             siteinfo = {}
             siteinfo['endpoint'] = self.arcconf.getCond(["sites", "site"], f"name={sitename}", ["endpoint"])
             siteinfo['rse'] = self.arcconf.getCond(["sites", "site"], f"name={sitename}", ["rse"])
             self.sites[sitename] = siteinfo
             self.endpoints[siteinfo['endpoint']] = sitename
+            self.rses[siteinfo['rse']] = siteinfo['endpoint']
 
     def process(self):
         '''

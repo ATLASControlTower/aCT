@@ -118,7 +118,7 @@ class aCTLDMXRegister(aCTLDMXProcess):
                     selinux.restorecon(arcjoblog) #pylint: disable=E1101
             except Exception as e:
                 self.log.error(f'Failed to copy {gmlogerrors}: {e}')
-    
+
             jobstdout = arcjob['stdout']
             if jobstdout:
                 try:
