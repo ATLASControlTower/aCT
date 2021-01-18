@@ -27,10 +27,11 @@ def submit(args):
         return 1
 
     # Check for mandatory parameters
-    for param in ('JobTemplate', 'RandomSeed1SequenceStart', 'RandomSeed2SequenceStart', 'NumberofJobs'):
-        if param not in config:
-            logger.error(f"Error: {param} not defined in {args.conffile}")
-            return 1
+    if 'InputDataset' not in config:
+        for param in ('JobTemplate', 'RandomSeed1SequenceStart', 'RandomSeed2SequenceStart', 'NumberofJobs'):
+            if param not in config:
+                logger.error(f"Error: {param} not defined in {args.conffile}")
+                return 1
 
     actconf = aCTConfigAPP()
     bufferdir = actconf.get(['jobs', 'bufferdir'])
@@ -50,7 +51,7 @@ def submit(args):
         logger.error(f"Failed to copy {args.conffile} to {os.path.join(bufferdir, 'configs')}: {str(e)}")
         return 1
 
-    logger.info(f"Submitted job configuration at {args.conffile} to create {config['NumberofJobs']} jobs")
+    logger.info(f"Submitted job configuration at {args.conffile} to create {config.get('NumberofJobs', '')} jobs")
     return 0
 
 def cancel(args):
