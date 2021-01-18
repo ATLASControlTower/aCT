@@ -1,4 +1,5 @@
 from collections import defaultdict
+import json
 import os
 import tempfile
 import time
@@ -34,19 +35,27 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                 self.log.error(f'Rucio exception while looking up dataset {scope}:{name}: {e}')
                 return []
             for i, f in enumerate(files):
-                config['InputFile'] = f'{f["scope"]}:{f["name"]}'
+                fname = f'{f["scope"]}:{f["name"]}'
+                config['InputFile'] = fname
                 for rse, rep in f['rses'].items():
                     if rse in self.rses:
-                        self.log.debug(f'Found local replica of {f["scope"]}:{f["name"]} in {rse}')
+                        self.log.debug(f'Found local replica of {fname} in {rse}')
                         config['InputDataLocationLocal'] = rep[0].replace('file://', '')
                         config['InputDataLocationLocalRSE'] = rse
                     if not rep[0].startswith('file://'):
-                        self.log.debug(f'Found remote replica of {f["scope"]}:{f["name"]} in {rse}')
+                        self.log.debug(f'Found remote replica of {fname} in {rse}')
                         config['InputDataLocationRemote'] = rep[0]
                         config['InputDataLocationRemoteRSE'] = rse
                 if 'InputDataLocationLocal' not in config:
                     # File will be downloaded by ARC and placed in session dir
                     config['InputDataLocationLocal'] = f'./{f["name"]}'
+                # Get metadata to pass to the job
+                try:
+                    meta = self.rucio.get_did_meta(f['scope'], f['name'])
+                except RucioException as e:
+                    self.log.error(f'Rucio exception while looking up metadata for {fname}: {e}')
+                    return []
+                config['InputMetadata'] = json.dumps({fname: meta}) 
                 config['runNumber'] = i+1
                 yield config
         else:
