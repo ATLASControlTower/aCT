@@ -98,3 +98,4 @@ class aCTATLASProcess:
         Clean up code when process exits
         '''
         self.log.info("Cleanup for %s", self.name)
+        os._exit(0)
