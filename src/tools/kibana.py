@@ -1,13 +1,14 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # Generate xml and send to Kibana
 #
 # Call this in a cron with arguments service_id webpage_url
 
 import os
-import kibanaXML
 import subprocess
 import sys
 import time
+import json
+import requests
 from datetime import datetime
 from act.arc.aCTDBArc import aCTDBArc
 from act.atlas.aCTDBPanda import aCTDBPanda
@@ -27,7 +28,10 @@ pandadb = aCTDBPanda(log)
 config = aCTConfigARC()
 
 def getARCJobs():
-    return str(arcdb.getNArcJobs('TRUE'))
+    try:
+        return str(arcdb.getNArcJobs('TRUE'))
+    except:
+        return str(arcdb.getNArcJobs())
 
 def getARCSlots():
     jobs=arcdb.getArcJobsInfo("state='Running'",['RequestedSlots'])
@@ -78,27 +82,43 @@ def getAvailability():
     return 'available', 'all ok'
 
 
-def sendXML(xml):
-    with open('/tmp/xml', 'w') as f:
-        f.write(xml)
-    out = subprocess.Popen(["curl", "-sS", "-F", "file=@/tmp/xml", "xsls.cern.ch"], stderr=subprocess.STDOUT).communicate()[0]
+def send(document):
+    return requests.post('http://monit-metrics.cern.ch:10012/', data=json.dumps(document), headers={ "Content-Type": "application/json; charset=UTF-8"})
 
-kibana_xml = kibanaXML.xml_doc()
+def send_and_check(document, should_fail=False):
+    response = send(document)
+    assert( (response.status_code in [200]) != should_fail), 'With document: {0}. Status code: {1}. Message: {2}'.format(document, response.status_code, response.text)
 
-kibana_xml.set_id(service_id)
-#kibana_xml.set_availability('100')
+
 availability, desc = getAvailability()
-kibana_xml.set_status(availability)
-kibana_xml.add_info('availabilityinfo', desc)
-kibana_xml.add_info('availabilitydesc', 'Check whether aCT is functioning correctly')
-kibana_xml.add_info('contact', 'atlas-adc-act-support@cern.ch')
-kibana_xml.add_info('webpage', webpage_url)
-kibana_xml.add_data( "arcjobs", "Number of arc jobs in the system", getARCJobs())
-kibana_xml.add_data( "arcslots", "Number of running slots", getARCSlots())
-kibana_xml.add_data( "pandasent12h", "Number of panda jobs waiting for >12h", getPandaNotStarted())
-kibana_xml.add_data( "arcqueued12h", "Number of arc jobs queued for >12h", getArcQueuedLong())
-kibana_xml.add_data( "pandadone", "Number of panda jobs done in 24h", getPandaDone())
-kibana_xml.add_data( "pandafailed", "Number of panda jobs failed in 24h", getPandaDoneFailed())
-sendXML(kibana_xml.print_xml())
-#print(kibana_xml.print_xml())
 
+i=[]
+info={}
+info['producer'] = 'atlasact'
+info['type'] = "availability"
+info['availabilityinfo'] = desc
+info['service_status'] = availability
+info['availabilitydesc'] = 'Check whether aCT is functioning correctly'
+info['serviceid'] = service_id
+info['timestamp'] =  int(time.time()*1000)
+info['contact'] = 'atlas-adc-act-support@cern.ch'
+info['webpage'] = webpage_url
+
+infom={}
+infom['producer'] = 'atlasact'
+infom['type'] = "metric"
+infom['timestamp'] =  int(time.time()*1000)
+infom['arcjobs'] = int(getARCJobs())
+infom['arcslots'] = int(getARCSlots())
+infom['pandasent12h'] = int(getPandaNotStarted())
+infom['arcqueued12h'] = int(getArcQueuedLong())
+infom['pandadone'] = int(getPandaDone())
+infom['pandafailed'] = int(getPandaDoneFailed())
+infom['serviceid'] = service_id
+infom["idb_tags"] = ["serviceid"]
+
+i.append(info)
+i.append(infom)
+
+send_and_check(i)
+#print(json.dumps(i))
