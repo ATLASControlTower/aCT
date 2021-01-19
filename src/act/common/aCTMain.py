@@ -205,6 +205,7 @@ class aCTMain:
                 dateext
                 missingok
                 rotate %s
+                maxsize 100M
                 nocreate
                 nocompress
             }''' % (self.conf.get(["logger", "logdir"]),
