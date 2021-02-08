@@ -82,7 +82,7 @@ class aCTLDMX2Arc(aCTLDMXProcess):
                        (ldmxproduction.config {descriptionfile}) \
                        (ldmxjob.py {templatefile}) \
                        (ldmx-simprod-rte-helper.py {self.conf.get(["executable", "ruciohelper"])})'
-        if 'InputDataLocationLocalRSE' not in config:
+        if 'InputFile' in config and 'InputDataLocationLocalRSE' not in config:
             # No local copy so get ARC to download it
             inputfiles += f'({config["InputFile"].split(":")[1]} \"{config["InputDataLocationRemote"]}\" "cache=no")'
         xrsl['inputfiles'] = f'(inputfiles = {inputfiles})'

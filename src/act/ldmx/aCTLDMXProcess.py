@@ -54,7 +54,9 @@ class aCTLDMXProcess:
             siteinfo['rse'] = self.arcconf.getCond(["sites", "site"], f"name={sitename}", ["rse"])
             self.sites[sitename] = siteinfo
             self.endpoints[siteinfo['endpoint']] = sitename
-            self.rses[siteinfo['rse']] = siteinfo['endpoint']
+            # Exclude offline sites
+            if self.arcconf.getCond(["sites", "site"], f"name={sitename}", ["status"]) != 'offline':
+                self.rses[siteinfo['rse']] = siteinfo['endpoint']
 
     def process(self):
         '''
