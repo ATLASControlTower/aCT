@@ -23,41 +23,44 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
             try:
                 scope, name = config['InputDataset'].split(':')
             except ValueError:
-                self.log.error(f'{config["InputDataset"]} is not correctly formatted as scope:name')
-                return []
+                raise Exception(f'{config["InputDataset"]} is not correctly formatted as scope:name')
+
             # List dataset replicas and set filename and RSE in the config
-            try:
-                files = self.rucio.list_replicas([{'scope': scope, 'name': name}])
-            except DataIdentifierNotFound:
-                self.log.error(f'No such dataset {scope}:{name}')
-                return []
-            except RucioException as e:
-                self.log.error(f'Rucio exception while looking up dataset {scope}:{name}: {e}')
-                return []
+            files = self.rucio.list_replicas([{'scope': scope, 'name': name}])
             for i, f in enumerate(files):
+                if not f:
+                    raise Exception(f'No such dataset {config["InputDataset"]}')
+                newconfig = config
                 fname = f'{f["scope"]}:{f["name"]}'
-                config['InputFile'] = fname
+                newconfig['InputFile'] = fname
+
                 for rse, rep in f['rses'].items():
                     if rse in self.rses:
                         self.log.debug(f'Found local replica of {fname} in {rse}')
-                        config['InputDataLocationLocal'] = rep[0].replace('file://', '')
-                        config['InputDataLocationLocalRSE'] = rse
+                        newconfig['InputDataLocationLocal'] = rep[0].replace('file://', '')
+                        newconfig['InputDataLocationLocalRSE'] = rse
                     if not rep[0].startswith('file://'):
                         self.log.debug(f'Found remote replica of {fname} in {rse}')
-                        config['InputDataLocationRemote'] = rep[0]
-                        config['InputDataLocationRemoteRSE'] = rse
-                if 'InputDataLocationLocal' not in config:
+                        newconfig['InputDataLocationRemote'] = rep[0]
+                        newconfig['InputDataLocationRemoteRSE'] = rse
+
+                # Check at least one replica is accessible
+                if 'InputDataLocationLocalRSE' not in newconfig and 'InputDataLocationRemoteRSE' not in newconfig:
+                    raise Exception(f'No usable locations for file {fname} in dataset {newconfig["InputDataset"]}')
+
+                if 'InputDataLocationLocal' not in newconfig:
                     # File will be downloaded by ARC and placed in session dir
-                    config['InputDataLocationLocal'] = f'./{f["name"]}'
+                    newconfig['InputDataLocationLocal'] = f'./{f["name"]}'
+
                 # Get metadata to pass to the job
                 try:
                     meta = self.rucio.get_did_meta(f['scope'], f['name'])
                 except RucioException as e:
-                    self.log.error(f'Rucio exception while looking up metadata for {fname}: {e}')
-                    return []
-                config['InputMetadata'] = json.dumps({fname: meta}) 
-                config['runNumber'] = i+1
-                yield config
+                    raise Exception(f'Rucio exception while looking up metadata for {fname}: {e}')
+
+                newconfig['InputMetadata'] = json.dumps({ "inputMeta" : meta}) 
+                newconfig['runNumber'] = i+1
+                yield newconfig
         else:
             # Jobs with no input: generate jobs based on specified number of jobs
             randomseed1 = int(config['RandomSeed1SequenceStart'])
@@ -65,10 +68,11 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
             njobs = int(config['NumberofJobs'])
             self.log.info(f'Creating {njobs} jobs')
             for n in range(njobs):
-                config['RandomSeed1'] = randomseed1+n
-                config['RandomSeed2'] = randomseed2+n
-                config['runNumber']   = randomseed1+n
-                yield config
+                newconfig = config
+                newconfig['RandomSeed1'] = randomseed1+n
+                newconfig['RandomSeed2'] = randomseed2+n
+                newconfig['runNumber']   = randomseed1+n
+                yield newconfig
 
     def getOutputBase(self, config):
 
@@ -132,6 +136,7 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                 output_base = self.getOutputBase(config)
 
                 # Generate copies of config and template
+                jobfiles = []
                 for jobconfig in self.generateJobs(config):
                     newjobfile = os.path.join(self.tmpdir, os.path.basename(jobfile))
                     with tempfile.NamedTemporaryFile(mode='w', prefix=f'{newjobfile}.', delete=False, encoding='utf-8') as njf:
@@ -153,13 +158,18 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                                 ntf.write(f'sim.runNumber = {jobconfig["runNumber"]}\n')
                             elif l.startswith('p.run'):
                                 ntf.write(f'p.run = {jobconfig["runNumber"]}\n')
+                            elif l.startswith('p.inputFiles'):
+                                ntf.write(f'p.inputFiles = [ "{jobconfig["InputFile"].split(":")[1]}" ]\n')
                             elif l.startswith('sim.randomSeeds'):
                                 ntf.write(f'sim.randomSeeds = [ {jobconfig.get("RandomSeed1", 0)}, {jobconfig.get("RandomSeed2", 0)} ]\n')
                             else:
                                 ntf.write(l)
+                    jobfiles.append((newjobfile, newtemplatefile))
 
+                for (newjobfile, newtemplatefile) in jobfiles:
                     self.dbldmx.insertJob(newjobfile, newtemplatefile, proxyid, batchid=batchid)
                     self.log.info(f'Inserted job from {newjobfile} into DB')
+
             except Exception as e:
                 self.log.error(f'Failed to create jobs from {jobfile}: {e}')
             os.remove(jobfile)
