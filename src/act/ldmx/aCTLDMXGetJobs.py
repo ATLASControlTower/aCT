@@ -30,7 +30,7 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
             for i, f in enumerate(files):
                 if not f:
                     raise Exception(f'No such dataset {config["InputDataset"]}')
-                newconfig = config
+                newconfig = config.copy()
                 fname = f'{f["scope"]}:{f["name"]}'
                 newconfig['InputFile'] = fname
 
@@ -141,7 +141,7 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                     newjobfile = os.path.join(self.tmpdir, os.path.basename(jobfile))
                     with tempfile.NamedTemporaryFile(mode='w', prefix=f'{newjobfile}.', delete=False, encoding='utf-8') as njf:
                         newjobfile = njf.name
-                        njf.write('\n'.join(f'{k}={v}' for k,v in config.items()) + '\n')
+                        njf.write('\n'.join(f'{k}={v}' for k,v in jobconfig.items()) + '\n')
                         if output_base:
                             njf.write(f'FinalOutputBasePath={output_base}\n')
  
