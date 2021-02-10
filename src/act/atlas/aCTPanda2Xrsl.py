@@ -139,8 +139,8 @@ class aCTPanda2Xrsl:
             walltime = walltime * 1.5
 
         # for large core count
-        if self.getNCores() > 20:
-            walltime = walltime * 1.5
+        if self.getNCores() > 15:
+            walltime = walltime * 2
 
         # JEDI analysis hack
         walltime = max(60, walltime)
@@ -290,6 +290,8 @@ class aCTPanda2Xrsl:
             pargs += ' "-i" "ALRB"'
         elif self.prodSourceLabel.startswith('rc_test'):
             pargs += ' "-i" "RC"'
+        if self.siteinfo['python_version'].startswith('3') and self.prodSourceLabel in ['rc_test2', 'ptest']:
+            pargs += ' --pythonversion 3'
         if self.truepilot:
             if self.piloturl:
                 pargs += ' "--url" "https://pandaserver.cern.ch" "-p" "25443" "--piloturl" "%s"' % (self.piloturl)
