@@ -11,13 +11,17 @@ from act.ldmx.aCTLDMXProcess import aCTLDMXProcess
 class aCTRucioCollector:
 
     def __init__(self):
-        self.metrics = {} # {RSE: {'used': 12324, 'files': 34}}
+        self.metrics = {} # {RSE: {'used': 12324, 'total': 10000000, 'files': 34}}
 
     def collect(self):
 
         rucio_rse_used = GaugeMetricFamily('rucio_rse_used',
                                            'Used space per RSE',
                                            labels=['rse_name'])
+
+        rucio_rse_total = GaugeMetricFamily('rucio_rse_total',
+                                            'Total space per RSE',
+                                            labels=['rse_name'])
 
         rucio_rse_files = GaugeMetricFamily('rucio_rse_files',
                                             'Number of files per RSE',
@@ -26,6 +30,7 @@ class aCTRucioCollector:
         for rse, metric in self.metrics.items():
             rucio_rse_used.add_metric([rse], metric['used'])
             rucio_rse_files.add_metric([rse], metric['files'])
+            rucio_rse_total.add_metric([rse], metric['total'])
 
         yield rucio_rse_used
         yield rucio_rse_files
@@ -56,6 +61,12 @@ class aCTRucioMonitor(aCTLDMXProcess):
         for rse in rses:
             info = self.rucio.get_rse_usage(rse['rse'], filters={'source': 'rucio'})
             metrics[rse['rse']] = next(info)
+            info = self.rucio.get_rse_usage(rse['rse'], filters={'source': 'storage'})
+            # Storage info is not always defined
+            try:
+                metrics[rse['rse']]['total'] = next(info)['total']
+            except StopIteration:
+                metrics[rse['rse']]['total'] = 0
 
         self.collector.metrics = metrics
         time.sleep(120)
