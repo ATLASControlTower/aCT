@@ -33,6 +33,7 @@ class aCTRucioCollector:
             rucio_rse_total.add_metric([rse], metric['total'])
 
         yield rucio_rse_used
+        yield rucio_rse_total
         yield rucio_rse_files
 
 
