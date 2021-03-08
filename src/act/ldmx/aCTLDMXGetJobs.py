@@ -1,6 +1,7 @@
 from collections import defaultdict
 import json
 import os
+import random
 import tempfile
 import time
 
@@ -24,6 +25,18 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                 scope, name = config['InputDataset'].split(':')
             except ValueError:
                 raise Exception(f'{config["InputDataset"]} is not correctly formatted as scope:name')
+
+            # Check if pileup is also needed
+            if 'PileupDataset' in config:
+                pileup = []
+                try:
+                    pscope, pname = config['PileupDataset'].split(':')
+                except ValueError:
+                    raise Exception(f'{config["PileupDataset"]} is not correctly formatted as scope:name')
+
+                pfiles = self.rucio.list_replicas([{'scope': pscope, 'name': pname}])
+                for f in pfiles:
+                    pileup.append(f)
 
             # List dataset replicas and set filename and RSE in the config
             files = self.rucio.list_replicas([{'scope': scope, 'name': name}])
@@ -51,6 +64,16 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                 if 'InputDataLocationLocal' not in newconfig:
                     # File will be downloaded by ARC and placed in session dir
                     newconfig['InputDataLocationLocal'] = f'./{f["name"]}'
+
+                # Add pileup if needed
+                if 'PileupDataset' in config:
+                    pfile = random.choice(pileup)
+                    # Always use remote copy so that it is cached
+                    for rse, rep in pfile['rses'].items():
+                        if not rep[0].startswith('file://'):
+                            newconfig['PileupLocation'] = rep[0]
+                    if 'PileupLocation' not in newconfig:
+                        raise Exception(f'No suitable locations found for pileup file {pfile["scope"]}:{pfile["name"]}')
 
                 # Get metadata to pass to the job
                 try:
