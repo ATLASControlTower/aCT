@@ -74,6 +74,7 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
                             newconfig['PileupLocation'] = rep[0]
                     if 'PileupLocation' not in newconfig:
                         raise Exception(f'No suitable locations found for pileup file {pfile["scope"]}:{pfile["name"]}')
+                    newconfig['PileupLocationLocal'] = f'./{pfile["name"]}'
 
                 # Get metadata to pass to the job
                 try:
