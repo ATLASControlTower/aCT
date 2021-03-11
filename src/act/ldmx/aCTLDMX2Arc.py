@@ -86,7 +86,7 @@ class aCTLDMX2Arc(aCTLDMXProcess):
             # No local copy so get ARC to download it
             inputfiles += f'({config["InputFile"].split(":")[1]} \"{config["InputDataLocationRemote"]}\" "cache=no")'
         if 'PileupLocation' in config:
-            inputfiles += f'({config["PileupLocation"].split("/")[-1]} \"{config["PileupLocation"]}\" "cache=yes")'
+            inputfiles += f'({config["PileupLocation"].split("/")[-1]} \"{config["PileupLocation"]}\" "cache=copy")'
         xrsl['inputfiles'] = f'(inputfiles = {inputfiles})'
 
         xrsl['stdout'] = '(stdout = stdout)'
