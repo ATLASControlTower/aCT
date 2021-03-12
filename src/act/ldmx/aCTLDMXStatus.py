@@ -154,7 +154,7 @@ class aCTLDMXStatus(aCTLDMXProcess):
         # Look for failed final states in ARC which are still starting or running in LDMX
         select = "arcstate in ('donefailed', 'cancelled', 'lost') and arcjobs.id=ldmxjobs.arcjobid"
         columns = ['arcstate', 'arcjobs.id', 'cluster', 'JobID', 'ldmxjobs.created', 'stdout', 'ldmxstatus',
-                   'description', 'template', 'sitename', 'ldmxjobs.proxyid', 'batchid', 'Error']
+                   'description', 'template', 'sitename', 'ldmxjobs.proxyid', 'batchid', 'Error', 'appjobid']
 
         jobstoupdate = self.dbarc.getArcJobsInfo(select, columns=columns, tables='arcjobs,ldmxjobs')
 
@@ -163,13 +163,13 @@ class aCTLDMXStatus(aCTLDMXProcess):
 
         failedjobs = [job for job in jobstoupdate if job['arcstate'] == 'donefailed']
         if failedjobs:
-            self.log.debug(f"Found {len(failedjobs)} failed jobs ({','.join([str(j['id']) for j in failedjobs])})")
+            self.log.debug(f"Found {len(failedjobs)} failed jobs ({','.join([str(j['appjobid']) for j in failedjobs])})")
         lostjobs = [job for job in jobstoupdate if job['arcstate'] == 'lost']
         if lostjobs:
-            self.log.debug(f"Found {len(lostjobs)} lost jobs ({','.join([str(j['id']) for j in lostjobs])})")
+            self.log.debug(f"Found {len(lostjobs)} lost jobs ({','.join([str(j['appjobid']) for j in lostjobs])})")
         cancelledjobs = [job for job in jobstoupdate if job['arcstate'] == 'cancelled']
         if cancelledjobs:
-            self.log.debug(f"Found {len(cancelledjobs)} cancelled jobs ({','.join([str(j['id']) for j in cancelledjobs])})")
+            self.log.debug(f"Found {len(cancelledjobs)} cancelled jobs ({','.join([str(j['appjobid']) for j in cancelledjobs])})")
 
         desc = {"arcstate": "toclean", "tarcstate": self.dbarc.getTimeStamp()}
         for aj in failedjobs:
@@ -213,7 +213,7 @@ class aCTLDMXStatus(aCTLDMXProcess):
         select = "arcstate in ('tocancel', 'cancelling', 'toclean') and (cluster='' or cluster is NULL)"
         jobs = self.dbarc.getArcJobsInfo(select, ['id', 'appjobid'])
         for job in jobs:
-            self.log.info("%s: Deleting from arcjobs unsubmitted job %d", job['appjobid'], job['id'])
+            self.log.info(f"{job['appjobid']}: Deleting from arcjobs unsubmitted job {job['id']}")
             self.dbarc.deleteArcJob(job['id'])
 
         select = "(arcstate='done' or arcstate='lost' or arcstate='cancelled' or arcstate='donefailed') \
@@ -223,9 +223,9 @@ class aCTLDMXStatus(aCTLDMXProcess):
         for job in jobs:
             # done jobs should not be there, log a warning
             if job['arcstate'] == 'done':
-                self.log.warning("%s: Removing orphaned done job %d", job['appjobid'], job['id'])
+                self.log.warning(f"{job['appjobid']}: Removing orphaned done job {job['id']}")
             else:
-                self.log.info("%s: Cleaning left behind %s job %d", job['appjobid'], job['arcstate'], job['id'])
+                self.log.info(f"{job['appjobid']}: Cleaning left behind {job['arcstate']} job {job['id']}")
             self.dbarc.updateArcJobLazy(job['id'], cleandesc)
             if job['JobID'] and job['JobID'].rfind('/') != -1:
                 sessionid = job['JobID'][job['JobID'].rfind('/'):]
@@ -237,7 +237,7 @@ class aCTLDMXStatus(aCTLDMXProcess):
         select = "arcstate='done' and ldmxstatus='cancelling' and arcjobs.id=ldmxjobs.arcjobid"
         jobs = self.dbarc.getArcJobsInfo(select, ['arcjobs.id', 'appjobid'], tables='arcjobs,ldmxjobs')
         for job in jobs:
-            self.log.info("%s: Cleaning finished job which was already cancelled" % job['appjobid'])
+            self.log.info(f"{job['appjobid']}: Cleaning finished job which was already cancelled")
             self.dbarc.updateArcJob(job['id'], {'arcstate': 'cancelled'})
 
     def checkForResubmission(self, arcjob):
@@ -246,18 +246,18 @@ class aCTLDMXStatus(aCTLDMXProcess):
         '''
 
         if arcjob['ldmxstatus'] in ['tocancel', 'cancelling']:
-            self.log.info(f"{arcjob['id']}: was already cancelled")
+            self.log.info(f"{arcjob['appjobid']}: was already cancelled")
             self.cleanInputFiles(arcjob)
             return
 
-        self.log.info(f"{arcjob['id']}: error: {arcjob['Error']}")
+        self.log.info(f"{arcjob['appjobid']}: error: {arcjob['Error']}")
         resub = [err for err in self.arcconf.getList(['errors','toresubmit','arcerrors','item']) if err in arcjob['Error']]
         if not resub:
-            self.log.info(f"{arcjob['id']} failed with permanent error")
+            self.log.info(f"{arcjob['appjobid']} failed with permanent error")
             self.cleanInputFiles(arcjob)
             return
 
-        self.log.info(f"{arcjob['id']} will be resubmitted")
+        self.log.info(f"{arcjob['appjobid']} will be resubmitted")
         self.dbldmx.insertJob(arcjob['description'], arcjob['template'],
                               arcjob['proxyid'], batchid=arcjob['batchid'])
 
@@ -284,12 +284,12 @@ class aCTLDMXStatus(aCTLDMXProcess):
         os.makedirs(outdfailed, 0o755, exist_ok=True)
 
         try:
-            arcjoblog = os.path.join(outdir, "%s.log" % arcjob['id'])
+            arcjoblog = os.path.join(outdir, "%s.log" % arcjob['appjobid'])
             shutil.copy(gmlogerrors, arcjoblog)
             os.chmod(arcjoblog, 0o644)
             if selinux:
                 selinux.restorecon(arcjoblog) #pylint: disable=E1101
-            arcjoblog = os.path.join(outdfailed, "%s.log" % arcjob['id'])
+            arcjoblog = os.path.join(outdfailed, "%s.log" % arcjob['appjobid'])
             shutil.move(gmlogerrors, arcjoblog)
             os.chmod(arcjoblog, 0o644)
             if selinux:
@@ -299,16 +299,16 @@ class aCTLDMXStatus(aCTLDMXProcess):
 
         if jobstdout:
             try:
-                shutil.copy(os.path.join(localdir, jobstdout),
-                            os.path.join(outdir, '%s.out' % arcjob['id']))
-                os.chmod(os.path.join(outdir, '%s.out' % arcjob['id']), 0o644)
+                arcjobout = os.path.join(outdir, '%s.out' % arcjob['appjobid'])
+                shutil.copy(os.path.join(localdir, jobstdout), arcjobout)
+                os.chmod(arcjobout, 0o644)
                 if selinux:
-                    selinux.restorecon(os.path.join(outdir, '%s.out' % arcjob['id'])) #pylint: disable=E1101
-                shutil.move(os.path.join(localdir, jobstdout),
-                            os.path.join(outdfailed, '%s.out' % arcjob['id']))
-                os.chmod(os.path.join(outdfailed, '%s.out' % arcjob['id']), 0o644)
+                    selinux.restorecon(arcjobout) #pylint: disable=E1101
+                arcjobout = os.path.join(outdfailed, '%s.out' % arcjob['appjobid'])
+                shutil.move(os.path.join(localdir, jobstdout), arcjobout)
+                os.chmod(arcjobout, 0o644)
                 if selinux:
-                    selinux.restorecon(os.path.join(outdfailed, '%s.out' % arcjob['id'])) #pylint: disable=E1101
+                    selinux.restorecon(arcjobout) #pylint: disable=E1101
             except Exception as e:
                 self.log.error(f'Failed to copy file {os.path.join(localdir, jobstdout)}, {str(e)}')
 

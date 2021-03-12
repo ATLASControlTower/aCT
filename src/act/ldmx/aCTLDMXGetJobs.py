@@ -26,20 +26,27 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
             except ValueError:
                 raise Exception(f'{config["InputDataset"]} is not correctly formatted as scope:name')
 
+            # List dataset replicas and set filename and RSE in the config
+            files = list(self.rucio.list_replicas([{'scope': scope, 'name': name}]))
+
             # Check if pileup is also needed
             if 'PileupDataset' in config:
+                self.log.info(f'Using pileup dataset {config["PileupDataset"]}')
                 pileup = []
                 try:
                     pscope, pname = config['PileupDataset'].split(':')
                 except ValueError:
                     raise Exception(f'{config["PileupDataset"]} is not correctly formatted as scope:name')
 
-                pfiles = self.rucio.list_replicas([{'scope': pscope, 'name': pname}])
-                for f in pfiles:
-                    pileup.append(f)
+                pileup = list(self.rucio.list_replicas([{'scope': pscope, 'name': pname}]))
+                if len(pileup) < len(files):
+                    self.log.info(f'Pileup dataset {config["PileupDataset"]} is smaller than input \
+                                    dataset {config["InputDataset"]}, will have to reuse some events!')
+                    pileup *= len(files) // len(pileup) + 1
+                random.shuffle(pileup)
 
             # List dataset replicas and set filename and RSE in the config
-            files = self.rucio.list_replicas([{'scope': scope, 'name': name}])
+            files = list(self.rucio.list_replicas([{'scope': scope, 'name': name}]))
             for i, f in enumerate(files):
                 if not f:
                     raise Exception(f'No such dataset {config["InputDataset"]}')
@@ -67,7 +74,7 @@ class aCTLDMXGetJobs(aCTLDMXProcess):
 
                 # Add pileup if needed
                 if 'PileupDataset' in config:
-                    pfile = random.choice(pileup)
+                    pfile = pileup[i]
                     # Always use remote copy so that it is cached
                     for rse, rep in pfile['rses'].items():
                         if not rep[0].startswith('file://'):

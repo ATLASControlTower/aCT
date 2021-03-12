@@ -110,7 +110,7 @@ class aCTLDMXRegister(aCTLDMXProcess):
         if str(self.conf.get(['joblog', 'keepsuccessful'])) == '1' and self.conf.get(['joblog','dir']):
             localdir = os.path.join(self.tmpdir, sessionid)
             gmlogerrors = os.path.join(localdir, "gmlog", "errors")
-            arcjoblog = os.path.join(outd, "%s.log" % arcjob['id'])
+            arcjoblog = os.path.join(outd, "%s.log" % arcjob['appjobid'])
             try:
                 shutil.move(gmlogerrors, arcjoblog)
                 os.chmod(arcjoblog, 0o644)
@@ -121,12 +121,12 @@ class aCTLDMXRegister(aCTLDMXProcess):
 
             jobstdout = arcjob['stdout']
             if jobstdout:
+                arcjobout = os.path.join(outd, '%s.out' % arcjob['appjobid'])
                 try:
-                    shutil.move(os.path.join(localdir, jobstdout),
-                                os.path.join(outd, '%s.out' % arcjob['id']))
-                    os.chmod(os.path.join(outd, '%s.out' % arcjob['id']), 0o644)
+                    shutil.move(os.path.join(localdir, jobstdout), arcjobout)
+                    os.chmod(arcjobout, 0o644)
                     if selinux:
-                        selinux.restorecon(os.path.join(outd, '%s.out' % arcjob['id'])) #pylint: disable=E1101
+                        selinux.restorecon(arcjobout) #pylint: disable=E1101
                 except Exception as e:
                     self.log.error(f'Failed to copy file {os.path.join(localdir, jobstdout)}, {str(e)}')
         else:
