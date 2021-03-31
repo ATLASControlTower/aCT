@@ -153,7 +153,7 @@ class aCTPanda2Xrsl:
 
         cputime = self.getNCores() * walltime
         if self.sitename.startswith('BOINC'):
-            if self.sitename == 'BOINC-TEST':
+            if self.sitename == 'BOINC_LONG':
                 walltime = min(1200, walltime)
             else:
                 walltime = min(240, walltime)
