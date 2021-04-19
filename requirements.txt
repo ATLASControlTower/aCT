@@ -8,6 +8,7 @@ pylint                  # for travis automatic tests
 requests                # for APF mon calls
 prometheus_client       # Prometheus monitoring
 selinux                 # SELinux context handling
+psutil                  # Reports of processes kills
 
 # For aCT client
 pyopenssl

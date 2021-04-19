@@ -17,6 +17,7 @@ setup(name='aCT',
         'requests',                 # for APF mon calls
         'prometheus_client',        # Prometheus monitoring
         'selinux',                  # SELinux context handling
+        'psutil',                   # Reports of process kills
 
         'pyopenssl',
         'flask',
