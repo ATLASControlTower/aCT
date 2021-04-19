@@ -80,6 +80,7 @@ class aCTFetcher(aCTProcess):
             if id not in downloadfiles:
                 continue
             jobid = job.JobID
+
             # If connection URL is different reconnect
             if arc.URL(jobid).ConnectionURL() != dp:
                 datapoint = aCTUtils.DataPoint(jobid, self.uc)
