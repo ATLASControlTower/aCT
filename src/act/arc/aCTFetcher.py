@@ -173,7 +173,7 @@ class aCTFetcher(aCTProcess):
             fetched.extend(f)
             notfetchedretry.extend(r)
 
-            nthreads=10
+            nthreads=1
             jobkeys=list(jobs_downloadsome.keys())
             # split job list in nthreads sublists
             jl=[jobkeys[i:i + nthreads] for i in range(0, len(jobkeys), nthreads)]
