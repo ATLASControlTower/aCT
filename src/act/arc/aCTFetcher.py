@@ -80,17 +80,20 @@ class aCTFetcher(aCTProcess):
             if id not in downloadfiles:
                 continue
             jobid = job.JobID
-
             # If connection URL is different reconnect
             if arc.URL(jobid).ConnectionURL() != dp:
                 datapoint = aCTUtils.DataPoint(jobid, self.uc)
                 dp = datapoint.h
             localdir = self.tmpdir + jobid[jobid.rfind('/'):] + '/'
+            sessiondir = jobid
+            # Check for REST
+            if job.JobManagementInterfaceName == 'org.nordugrid.arcrest':
+                sessiondir += '/session'
 
             files = downloadfiles[id].split(';')
             if re.search('[\*\[\]\?]', downloadfiles[id]):
                 # found wildcard, need to get sessiondir list
-                remotefiles = self.listUrlRecursive(jobid)
+                remotefiles = self.listUrlRecursive(sessiondir)
                 expandedfiles = []
                 for wcf in files:
                     if re.search('[\*\[\]\?]', wcf):
@@ -112,7 +115,11 @@ class aCTFetcher(aCTProcess):
                         self.log.warning('Failed to create directory %s: %s', localfiledir, os.strerror(e.errno))
                         notfetched.append(jobid)
                         break
-                remotefile = arc.URL(str(jobid + '/' + f))
+                # Check for diagnostic files in REST
+                if job.JobManagementInterfaceName == 'org.nordugrid.arcrest' and f.startswith('gmlog/'):
+                    remotefile = arc.URL(str(jobid + '/diagnose/' + f[6:]))
+                else:
+                    remotefile = arc.URL(str(sessiondir + '/' + f))
                 if not dp.SetURL(remotefile):
                     datapoint = aCTUtils.DataPoint(remotefile.str(), self.uc)
                     dp = datapoint.h
