@@ -8,6 +8,8 @@ from act.common.aCTConfig import aCTConfigARC
 from datetime import datetime, timedelta
 import re
 
+import psutil
+
 def main():
 
     conf = aCTConfigARC()
@@ -29,6 +31,11 @@ def main():
     if criticalerrors:
         print('%d critical errors in the last hour\n' % criticalerrors)
         print('Last critical error:\n%s' % lastcritical)
+
+    for p in psutil.process_iter(['pid','ppid','name','username']):
+        if p.ppid() == 1 and p.name() == 'arc-dmcgridftp':
+          print("arc-dmcgridftp killed: ",p.pid)
+          p.kill()
 
 if __name__ == '__main__':
     main()
