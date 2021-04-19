@@ -97,7 +97,7 @@ class aCTPanda2Xrsl:
 
     def setDisk(self):
 
-        if self.sitename not in ['DE-TARDIS']:
+        if self.sitename not in ['UIO_CLOUD', 'DE-TARDIS']:
             return
         # Space for data created by the job
         if 'maxDiskCount' in self.jobdesc:
