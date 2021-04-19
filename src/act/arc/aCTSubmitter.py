@@ -220,7 +220,7 @@ class aCTSubmitter(aCTProcess):
 
             # apply maxjobs limit (check above should make sure greater than zero)
             # Note: relies on exit after first loop
-            limit = min(clustermaxjobs - nsubmitted, 10)
+            limit = min(clustermaxjobs - nsubmitted, 100)
             try:
                 # catch any exceptions here to avoid leaving lock
                 if self.cluster:
