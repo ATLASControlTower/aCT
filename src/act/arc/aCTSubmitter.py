@@ -271,7 +271,11 @@ class aCTSubmitter(aCTProcess):
                     aris = arc.URL('gsiftp://%s' % self.cluster)
                 if aris.Protocol() == 'https':
                     aris.ChangePath('/arex')
-                    infoendpoints = [arc.Endpoint(aris.str(), arc.Endpoint.COMPUTINGINFO, 'org.ogf.glue.emies.resourceinfo')]
+                    # tmp filter for REST, to remove when EMI-ES no longer necessary
+                    if fairshare in ['ARC-TEST']:
+                        infoendpoints = [arc.Endpoint(aris.str(), arc.Endpoint.COMPUTINGINFO, 'org.nordugrid.arcrest')]
+                    else:
+                        infoendpoints = [arc.Endpoint(aris.str(), arc.Endpoint.COMPUTINGINFO, 'org.ogf.glue.emies.resourceinfo')]
                 elif aris.Protocol() == 'local':
                     infoendpoints = [arc.Endpoint(aris.str(), arc.Endpoint.COMPUTINGINFO, 'org.nordugrid.local')]
                 else:
@@ -306,6 +310,10 @@ class aCTSubmitter(aCTProcess):
                 # If EMI-ES infoendpoint, force EMI-ES submission
                 if infoendpoints[0].InterfaceName == 'org.ogf.glue.emies.resourceinfo' and target.ComputingEndpoint.InterfaceName != 'org.ogf.glue.emies.activitycreation':
                     self.log.debug("Rejecting target interface %s because not EMI-ES" % target.ComputingEndpoint.InterfaceName)
+                    continue
+                # If REST infoendpoint, force REST submission
+                if infoendpoints[0].InterfaceName == 'org.nordugrid.arcrest' and target.ComputingEndpoint.InterfaceName != 'org.nordugrid.arcrest':
+                    self.log.debug("Rejecting target interface %s because not REST" % target.ComputingEndpoint.InterfaceName)
                     continue
                 # Check for matching host and queue
                 targethost = re.sub(':arex$', '', re.sub('urn:ogf:ComputingService:', '', target.ComputingService.ID))
