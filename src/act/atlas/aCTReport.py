@@ -10,7 +10,7 @@ def report(actconfs):
     rep = {}
     rtot = {}
     log = ''
-    states = ["sent", "starting", "running", "slots", "tovalidate", "toresubmit",
+    states = ["sent", "starting", "running", "slots", "transferring", "tovalidate", "toresubmit",
               "toclean", "finished", "done", "failed", "donefailed",
               "tobekilled", "cancelled", "donecancelled"]
 

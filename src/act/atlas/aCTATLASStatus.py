@@ -128,7 +128,7 @@ class aCTATLASStatus(aCTATLASProcess):
         self.dbpanda.Commit()
 
 
-    def updateRunningJobs(self):
+    def updateRunningJobs(self,state):
         """
         Check for new running jobs and update pandajobs with
         - pandastatus
@@ -140,7 +140,10 @@ class aCTATLASStatus(aCTATLASProcess):
         # do an inner join to pick up all jobs that should be set to running
         # todo: pandajobs.starttime will not be updated if a job is resubmitted
         # internally by the ARC part.
-        select = "arcjobs.id=pandajobs.arcjobid and arcjobs.arcstate in ('running', 'finishing') and pandajobs.actpandastatus in ('starting', 'sent')"
+        if state == "running":
+           select = "arcjobs.id=pandajobs.arcjobid and arcjobs.arcstate in ('running') and pandajobs.actpandastatus in ('starting', 'sent')"
+        if state == "finishing":
+           select = "arcjobs.id=pandajobs.arcjobid and arcjobs.arcstate in ('finishing') and pandajobs.actpandastatus in ('starting', 'sent', 'running')"
         select += " and pandajobs.sitename in %s limit 100000" % self.sitesselect
 
         columns = ["arcjobs.id", "arcjobs.UsedTotalWalltime", "arcjobs.ExecutionNode",
@@ -150,13 +153,16 @@ class aCTATLASStatus(aCTATLASProcess):
         if len(jobstoupdate) == 0:
             return
         else:
-            self.log.debug("Found %d running jobs (%s)" % (len(jobstoupdate), ','.join([j['appjobid'] for j in jobstoupdate])))
+            self.log.debug("Found %s: %d jobs (%s)" % (state, len(jobstoupdate), ','.join([j['appjobid'] for j in jobstoupdate])))
 
         for aj in jobstoupdate:
             select = "arcjobid='"+str(aj["id"])+"'"
             desc = {}
             desc["pandastatus"] = "running"
             desc["actpandastatus"] = "running"
+            if state == "finishing":
+                desc["pandastatus"] = "transferring"
+                desc["actpandastatus"] = "transferring"
             if len(aj["ExecutionNode"]) > 255:
                 desc["node"] = aj["ExecutionNode"][:254]
                 self.log.warning("%s: Truncating wn hostname from %s to %s" % (aj['pandaid'], aj['ExecutionNode'], desc['node']))
@@ -577,7 +583,9 @@ class aCTATLASStatus(aCTATLASProcess):
         # Query jobs that were submitted since last time
         self.updateStartingJobs()
         # Query jobs in running arcstate with tarcstate sooner than last run
-        self.updateRunningJobs()
+        self.updateRunningJobs('running')
+        # Report finishing as transferring
+        self.updateRunningJobs('finishing')
         # Query jobs in arcstate done and update pandajobs
         # Set to toclean
         self.updateFinishedJobs()
