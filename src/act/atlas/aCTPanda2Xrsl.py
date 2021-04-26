@@ -192,6 +192,9 @@ class aCTPanda2Xrsl:
                 memory = 2000
             else:
                 memory = memory // self.getNCores()
+                # min 0.5G/core
+                if memory <= 250:
+                    memory = 250
         else:
             # Min 2GB for single core
             memory = max(memory, 2000)
