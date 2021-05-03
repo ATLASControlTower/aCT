@@ -437,7 +437,7 @@ class aCTATLASStatus(aCTATLASProcess):
 
         # Look for failed final states in ARC which are still starting or running in panda
         select = "(arcstate='donefailed' or arcstate='cancelled' or arcstate='lost')"
-        select += " and actpandastatus in ('sent', 'starting', 'running')"
+        select += " and actpandastatus in ('sent', 'starting', 'running', 'transferring')"
         select += " and pandajobs.arcjobid = arcjobs.id and siteName in %s limit 100000" % self.sitesselect
         columns = ['arcstate', 'arcjobid', 'appjobid', 'JobID', 'arcjobs.Error', 'arcjobs.EndTime',
                    'siteName', 'ExecutionNode', 'pandaid', 'UsedTotalCPUTime', 'pandajobs.created',
